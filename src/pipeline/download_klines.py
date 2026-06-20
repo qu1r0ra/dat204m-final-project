@@ -3,41 +3,31 @@ Bulk-download Binance spot 1-minute klines for ~3 years across all USDT pairs.
 
 Source: official Binance historical data archive (data.binance.vision),
 via the `binance_historical_data` package. No API key required.
-
-Sizing target: ~400 symbols x 3 years x 1m candles -> ~85-90 GB of extracted
-CSV, comfortably clearing a 50 GB raw-data requirement.
-
-Usage:
-    pip install -r requirements.txt
-    python download_klines.py
-
-Safe to interrupt (Ctrl+C) and re-run: already-downloaded dates are skipped.
 """
 
 import datetime
 import logging
 import os
-
 from dateutil.relativedelta import relativedelta
 from binance_historical_data import BinanceDataDumper
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
+# Import parameters and exclusion config from central src/config.py
+from src.config import (
+    RAW_KLINES_DIR,
+    YEARS_OF_HISTORY,
+    DATA_FREQUENCY,
+    STABLECOIN_BASES,
+    EXCLUDED_SUFFIXES,
+)
 
-OUTPUT_DIR = "./data/raw/binance_data"
-YEARS_OF_HISTORY = 3
-DATA_FREQUENCY = "1m"
-
-# Pairs to drop from the default "all *USDT" universe:
-#   - leveraged tokens (e.g. BTCUPUSDT / BTCDOWNUSDT) - synthetic, not spot price action
-#   - stablecoin-vs-stablecoin pairs (e.g. USDCUSDT) - near-flat, not useful for ML features
-STABLECOIN_BASES = {"USDC", "BUSD", "TUSD", "FDUSD", "DAI", "USDP", "PAX", "UST", "USTC"}
+OUTPUT_DIR = str(RAW_KLINES_DIR)
 
 
 def is_excluded(ticker: str) -> bool:
+    if not ticker.endswith("USDT"):
+        return True
     base = ticker[: -len("USDT")]
-    if base.endswith("UP") or base.endswith("DOWN"):
+    if any(base.endswith(sfx) for sfx in EXCLUDED_SUFFIXES):
         return True
     if base in STABLECOIN_BASES:
         return True
@@ -69,7 +59,9 @@ def main() -> None:
         len(tickers_to_exclude),
     )
 
-    date_end = datetime.date.today() - relativedelta(days=1)  # yesterday (last complete day)
+    date_end = datetime.date.today() - relativedelta(
+        days=1
+    )  # yesterday (last complete day)
     date_start = date_end - relativedelta(years=YEARS_OF_HISTORY)
 
     data_dumper.dump_data(
@@ -81,8 +73,7 @@ def main() -> None:
     )
 
     # Daily files that are already fully covered by a monthly file are
-    # redundant - clean them up (mainly relevant if you re-run this later
-    # to pick up new data).
+    # redundant - clean them up.
     data_dumper.delete_outdated_daily_results()
 
     report_size(OUTPUT_DIR)
@@ -90,10 +81,11 @@ def main() -> None:
 
 def report_size(path: str) -> None:
     total_bytes = 0
-    for dirpath, _, filenames in os.walk(path):
-        for f in filenames:
-            total_bytes += os.path.getsize(os.path.join(dirpath, f))
-    logging.info("Total downloaded size: %.2f GB", total_bytes / (1024 ** 3))
+    if os.path.exists(path):
+        for dirpath, _, filenames in os.walk(path):
+            for f in filenames:
+                total_bytes += os.path.getsize(os.path.join(dirpath, f))
+    logging.info("Total downloaded size: %.2f GB", total_bytes / (1024**3))
 
 
 if __name__ == "__main__":

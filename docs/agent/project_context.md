@@ -95,7 +95,7 @@ dat204m-final-project/
 
 ## 5. Team Roles & Task Dissemination
 
-To execute this project with 4 group members, roles have been structured to ensure fair distribution of work. Detailed details are stored in [team_roles.md](../team_roles.md).
+To execute this project with 4 group members, roles have been structured to ensure fair distribution of work. These assignments are tentative, subject to change as the project progresses, and detailed in [team_roles.md](../team_roles.md).
 
 - **Role 1: Cloud Infrastructure & Repository Lead** (CJ) - AWS environment configuration (S3 central hub, Glue Crawlers, cross-account resource policies), Git repository maintenance, code quality reviews, and production pipeline scale-up execution.
 - **Role 2: Data Engineering & Pipeline Lead** (Teammate A) - Ingestion pipeline execution, data cleaning/deduplication with DuckDB, sampling generator implementation, and data profiling documentation.

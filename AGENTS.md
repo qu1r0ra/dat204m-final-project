@@ -30,3 +30,11 @@ Before concluding a session or handing off work to a future agent, perform the f
 - Do not store raw data or output data files in the repository root.
 - All datasets must reside inside the `data/` folder, which is git-ignored.
 - Keep the repository clean of IDE logs, cache directories, or temporary file outputs.
+
+---
+
+## 4. Writing & Formatting Preferences
+
+- **Relative Links Only**: Do NOT use absolute links or `file:///` paths in markdown files (e.g., in documentation or plans). Always use relative markdown links so they remain functional for all team members.
+- **No Emojis**: Do NOT use emojis in any markdown documents (including internal project files like plans, tasks, roles, and guides).
+- **Professional Tone**: Keep the tone professional and objective in final/formal reports (avoiding flowery language or excessive adjectives). This strict constraint is relaxed for internal project markdown files (e.g., plans, roles, tasks) where formatting and structure are preferred to maximize readability, but flowery language must still be avoided.

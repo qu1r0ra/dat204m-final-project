@@ -1,0 +1,3 @@
+"""
+Core src package.
+"""

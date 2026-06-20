@@ -13,13 +13,11 @@ import duckdb
 import src.config as config
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 def generate_sample() -> None:
-    logging.info("Starting sample Parquet generation...")
+    logger.info("Starting sample Parquet generation...")
 
     # Identify downloaded CSV files for our TOP_20_SYMBOLS
     valid_paths = []
@@ -32,32 +30,25 @@ def generate_sample() -> None:
             if csv_files:
                 # Add the glob pattern for DuckDB to read
                 valid_paths.append(str(symbol_dir / "*.csv"))
-                logging.info(
+                logger.info(
                     f"Adding symbol {symbol} with {len(csv_files)} files to sample."
                 )
             else:
-                logging.warning(f"No CSV files found in {symbol_dir}.")
+                logger.warning(f"No CSV files found in {symbol_dir}.")
         else:
-            logging.warning(f"Directory {symbol_dir} does not exist.")
+            logger.warning(f"Directory {symbol_dir} does not exist.")
 
     if not valid_paths:
-        logging.error(
+        logger.error(
             "No valid CSV files found for any of the configured TOP_20_SYMBOLS."
         )
-        logging.error(
+        logger.error(
             "Please run the klines downloader script or verify that raw datasets exist."
         )
         return
 
     # Output file setup
     config.SAMPLE_PARQUET_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    # Initialize DuckDB connection
-    con = duckdb.connect(database=":memory:")
-
-    logging.info(
-        f"Aggregating and exporting {len(valid_paths)} symbol paths to Parquet..."
-    )
 
     # Format list of valid paths into SQL string array format: ['path1', 'path2']
     paths_str = ", ".join("'" + p.replace("\\", "/") + "'" for p in valid_paths)
@@ -92,26 +83,33 @@ def generate_sample() -> None:
     """
 
     try:
-        con.execute(export_query)
-        logging.info(
-            f"Sample Parquet file generated successfully at: {config.SAMPLE_PARQUET_PATH}"
-        )
+        with duckdb.connect(database=":memory:") as con:
+            logger.info(
+                f"Aggregating and exporting {len(valid_paths)} symbol paths to Parquet..."
+            )
+            con.execute(export_query)
+            logger.info(
+                f"Sample Parquet file generated successfully at: {config.SAMPLE_PARQUET_PATH}"
+            )
 
-        # Verify the generated file size and count
-        count_res = con.execute(
-            f"SELECT COUNT(*), COUNT(DISTINCT symbol) FROM read_parquet('{parquet_path_str}')"
-        ).fetchone()
-        logging.info(
-            f"Verified Parquet file contains {count_res[0]:,} rows across {count_res[1]} unique symbols."
-        )
+            # Verify the generated file size and count
+            count_res = con.execute(
+                f"SELECT COUNT(*), COUNT(DISTINCT symbol) FROM read_parquet('{parquet_path_str}')"
+            ).fetchone()
+            logger.info(
+                f"Verified Parquet file contains {count_res[0]:,} rows across {count_res[1]} unique symbols."
+            )
 
-        # Report size
-        file_size_mb = os.path.getsize(config.SAMPLE_PARQUET_PATH) / (1024 * 1024)
-        logging.info(f"Parquet file size: {file_size_mb:.2f} MB")
+            # Report size
+            file_size_mb = os.path.getsize(config.SAMPLE_PARQUET_PATH) / (1024 * 1024)
+            logger.info(f"Parquet file size: {file_size_mb:.2f} MB")
 
     except Exception as e:
-        logging.error(f"Failed to generate sample Parquet: {e}")
+        logger.error(f"Failed to generate sample Parquet: {e}")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     generate_sample()

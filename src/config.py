@@ -8,6 +8,10 @@ and toggles for local/cloud execution modes.
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import logging
+
+# Set up module-level logger
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Path Configurations (Relative to this configuration file)
@@ -30,17 +34,61 @@ SAMPLE_PARQUET_PATH = SAMPLE_DATA_DIR / "binance_sample.parquet"
 DOCS_DIR = PROJECT_ROOT / "docs"
 DATA_PROFILE_PATH = DOCS_DIR / "data_profile.md"
 
+
+# Helper functions to load environment variables with warnings
+def get_env_str(key: str, default: str) -> str:
+    val = os.getenv(key)
+    if val is None:
+        logger.warning(
+            f"Environment variable '{key}' is missing. Using default fallback: '{default}'"
+        )
+        return default
+    return val
+
+
+def get_env_int(key: str, default: int) -> int:
+    val = os.getenv(key)
+    if val is None:
+        logger.warning(
+            f"Environment variable '{key}' is missing. Using default fallback: {default}"
+        )
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        logger.warning(
+            f"Environment variable '{key}' has invalid integer value '{val}'. Using default fallback: {default}"
+        )
+        return default
+
+
+def get_env_float(key: str, default: float) -> float:
+    val = os.getenv(key)
+    if val is None:
+        logger.warning(
+            f"Environment variable '{key}' is missing. Using default fallback: {default}"
+        )
+        return default
+    try:
+        return float(val)
+    except ValueError:
+        logger.warning(
+            f"Environment variable '{key}' has invalid float value '{val}'. Using default fallback: {default}"
+        )
+        return default
+
+
 # ---------------------------------------------------------------------------
 # Execution Settings
 # ---------------------------------------------------------------------------
 # Modes: "local_sample" (default), "local_raw", "aws_hub"
-EXECUTION_MODE = os.getenv("EXECUTION_MODE", "local_sample")
+EXECUTION_MODE = get_env_str("EXECUTION_MODE", "local_sample")
 
 # ---------------------------------------------------------------------------
 # Historical Data / Download Settings
 # ---------------------------------------------------------------------------
-YEARS_OF_HISTORY = int(os.getenv("YEARS_OF_HISTORY", "3"))
-DATA_FREQUENCY = os.getenv("DATA_FREQUENCY", "1m")
+YEARS_OF_HISTORY = get_env_int("YEARS_OF_HISTORY", 3)
+DATA_FREQUENCY = get_env_str("DATA_FREQUENCY", "1m")
 
 # ---------------------------------------------------------------------------
 # Symbols & Sampling Selection
@@ -86,18 +134,18 @@ EXCLUDED_SUFFIXES = ("UP", "DOWN")  # Leveraged tokens
 # ---------------------------------------------------------------------------
 # Machine Learning Task Parameters (Option A: Binary Direction Classification)
 # ---------------------------------------------------------------------------
-TARGET_SYMBOL = os.getenv("TARGET_SYMBOL", "BTCUSDT")
-FUTURE_HORIZON = int(os.getenv("FUTURE_HORIZON", "15"))  # N minutes ahead
-TARGET_THRESHOLD = float(
-    os.getenv("TARGET_THRESHOLD", "0.0")
+TARGET_SYMBOL = get_env_str("TARGET_SYMBOL", "BTCUSDT")
+FUTURE_HORIZON = get_env_int("FUTURE_HORIZON", 15)  # N minutes ahead
+TARGET_THRESHOLD = get_env_float(
+    "TARGET_THRESHOLD", 0.0
 )  # Return threshold for UP direction
-TRAIN_SPLIT_DATE = os.getenv("TRAIN_SPLIT_DATE", "2024-01-01")
+TRAIN_SPLIT_DATE = get_env_str("TRAIN_SPLIT_DATE", "2024-01-01")
 
 # ---------------------------------------------------------------------------
 # AWS S3 Hub-and-Spoke Configurations
 # ---------------------------------------------------------------------------
-AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME", "dat204m-binance-bigdata-hub")
+AWS_REGION = get_env_str("AWS_DEFAULT_REGION", "us-east-1")
+AWS_S3_BUCKET_NAME = get_env_str("AWS_S3_BUCKET_NAME", "dat204m-binance-bigdata-hub")
 AWS_S3_RAW_PREFIX = "raw/"
 AWS_S3_SAMPLE_PREFIX = "sample/"
 

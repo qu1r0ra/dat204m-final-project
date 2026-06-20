@@ -20,6 +20,8 @@ from src.config import (
     EXCLUDED_SUFFIXES,
 )
 
+logger = logging.getLogger(__name__)
+
 OUTPUT_DIR = str(RAW_KLINES_DIR)
 
 
@@ -53,7 +55,7 @@ def main() -> None:
     usdt_tickers = [t for t in all_tickers if t.endswith("USDT")]
     tickers_to_exclude = [t for t in usdt_tickers if is_excluded(t)]
 
-    logging.info(
+    logger.info(
         "Found %d USDT pairs total, excluding %d (leveraged tokens / stablecoin pairs)",
         len(usdt_tickers),
         len(tickers_to_exclude),
@@ -85,7 +87,7 @@ def report_size(path: str) -> None:
         for dirpath, _, filenames in os.walk(path):
             for f in filenames:
                 total_bytes += os.path.getsize(os.path.join(dirpath, f))
-    logging.info("Total downloaded size: %.2f GB", total_bytes / (1024**3))
+    logger.info("Total downloaded size: %.2f GB", total_bytes / (1024**3))
 
 
 if __name__ == "__main__":

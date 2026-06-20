@@ -8,19 +8,16 @@ to docs/data_profile.md.
 
 import datetime
 import logging
-import os
 import duckdb
 
 import src.config as config
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 def run_profiling() -> None:
-    logging.info("Starting dataset profiling...")
+    logger.info("Starting dataset profiling...")
 
     # Pattern to match all Spot Monthly 1m Kline CSV files
     csv_pattern = str(
@@ -30,8 +27,8 @@ def run_profiling() -> None:
     # Check if any files exist before launching DuckDB
     base_dir = config.RAW_KLINES_DIR / "spot" / "monthly" / "klines"
     if not base_dir.exists():
-        logging.error(f"Raw data directory does not exist: {base_dir}")
-        logging.error(
+        logger.error(f"Raw data directory does not exist: {base_dir}")
+        logger.error(
             "Please run the downloader script first or place datasets under data/raw/binance_data/."
         )
         return
@@ -39,15 +36,10 @@ def run_profiling() -> None:
     # Use glob to verify there's at least one CSV file
     csv_files = list(base_dir.glob("*/1m/*.csv"))
     if not csv_files:
-        logging.error(f"No CSV files found in: {base_dir}/*/1m/")
+        logger.error(f"No CSV files found in: {base_dir}/*/1m/")
         return
 
-    logging.info(f"Found {len(csv_files)} raw CSV files to profile.")
-
-    # Initialize DuckDB connection
-    con = duckdb.connect(database=":memory:")
-
-    logging.info("Running aggregation queries across raw CSV files...")
+    logger.info(f"Found {len(csv_files)} raw CSV files to profile.")
 
     # Query description:
     # column0 = open_time (epoch milliseconds)
@@ -68,9 +60,11 @@ def run_profiling() -> None:
     """
 
     try:
-        df_profile = con.execute(query).df()
+        with duckdb.connect(database=":memory:") as con:
+            logger.info("Running aggregation queries across raw CSV files...")
+            df_profile = con.execute(query).df()
     except Exception as e:
-        logging.error(f"Failed to profile dataset via DuckDB: {e}")
+        logger.error(f"Failed to profile dataset via DuckDB: {e}")
         return
 
     def ms_to_str(ms):
@@ -107,7 +101,7 @@ def run_profiling() -> None:
         "",
         "## Summary Metrics",
         "",
-        f"- **Total Unique Symbols**: {total_symbols}",
+        "- **Total Unique Symbols**: " + str(total_symbols),
         f"- **Total Rows (Observations)**: {total_rows:,}",
         f"- **Total Duplicate Timestamps**: {total_duplicates}",
         f"- **Total Rows with Null Values**: {total_nulls}",
@@ -129,10 +123,13 @@ def run_profiling() -> None:
     with open(config.DATA_PROFILE_PATH, "w") as f:
         f.write("\n".join(report_lines) + "\n")
 
-    logging.info(
+    logger.info(
         f"Dataset profiling completed successfully! Report written to {config.DATA_PROFILE_PATH}"
     )
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     run_profiling()

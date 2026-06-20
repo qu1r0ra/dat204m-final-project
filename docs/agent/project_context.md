@@ -61,8 +61,6 @@ dat204m-final-project/
 ├── docs/                    # Written deliverables & report context
 │   ├── specs.md             # Professor's Project Specifications
 │   ├── team_roles.md        # Team roles and task dissemination
-│   ├── eda_report.md        # Formatted descriptive analytics report
-│   ├── final_report.md      # Final project report
 │   └── agent/               # Agent-centric context files, rules, and plans
 │       ├── project_context.md # This document
 │       ├── implementation_plan.md # Technical implementation plan
@@ -92,3 +90,14 @@ dat204m-final-project/
 ├── uv.lock                  # uv lockfile
 └── README.md                # Project README
 ```
+
+---
+
+## 5. Team Roles & Task Dissemination
+
+To execute this project with 4 group members, roles have been structured to ensure fair distribution of work. Detailed details are stored in [team_roles.md](../team_roles.md).
+
+- **Role 1: Cloud Infrastructure & Repository Lead** (CJ) - AWS environment configuration (S3 central hub, Glue Crawlers, cross-account resource policies), Git repository maintenance, code quality reviews, and production pipeline scale-up execution.
+- **Role 2: Data Engineering & Pipeline Lead** (Teammate A) - Ingestion pipeline execution, data cleaning/deduplication with DuckDB, sampling generator implementation, and data profiling documentation.
+- **Role 3: Machine Learning & Modeling Lead** (Teammate B) - ML problem definition, baseline classifier creation, technical indicator feature engineering (Polars), model training, tuning, and comparison metrics.
+- **Role 4: Exploratory Analytics & Comms Lead** (Teammate C) - Running descriptive statistics, producing 5+ analytical charts, authoring the EDA and final reports, and managing presentation preparation and deadlines.

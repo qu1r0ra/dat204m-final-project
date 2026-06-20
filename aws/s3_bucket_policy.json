@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpokeAccountsListBucket",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_1>:root",
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_2>:root",
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_3>:root"
+        ]
+      },
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub"
+    },
+    {
+      "Sid": "AllowSpokeAccountsGetObjects",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_1>:root",
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_2>:root",
+          "arn:aws:iam::<SPOKE_AWS_ACCOUNT_ID_3>:root"
+        ]
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub/*"
+    }
+  ]
+}

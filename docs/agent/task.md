@@ -14,7 +14,7 @@
   - `[ ]` Implement `src/pipeline/preprocess.py` (optimized profiling)
   - `[ ]` Implement `src/pipeline/sample_generator.py` (sample Parquet exporter)
 - `[ ]` **AWS Infrastructure configuration**
-  - `[ ]` Implement `aws/s3_bucket_policy.json` cross-account template
+  - `[x]` Implement `aws/s3_bucket_policy.json` cross-account template
   - `[ ]` Implement `src/utils/aws_client.py` bucket upload utilities
 - `[ ]` **ML Modules & Feature Engineering**
   - `[ ]` Implement `src/features/indicators.py` (technical indicators in Polars)

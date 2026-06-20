@@ -10,9 +10,9 @@
 - `[x]` **Dependency Setup**
   - `[x]` Update `pyproject.toml` and sync dependencies
 - `[ ]` **Configuration & Pipeline Implementation (Step-by-step)**
-  - `[ ]` Implement `src/config.py` with configurable modes and parameters
-  - `[ ]` Implement `src/pipeline/preprocess.py` (optimized profiling)
-  - `[ ]` Implement `src/pipeline/sample_generator.py` (sample Parquet exporter)
+  - `[x]` Implement `src/config.py` with configurable modes and parameters
+  - `[x]` Implement `src/pipeline/preprocess.py` (optimized profiling)
+  - `[x]` Implement `src/pipeline/sample_generator.py` (sample Parquet exporter)
 - `[ ]` **AWS Infrastructure configuration**
   - `[x]` Implement `aws/s3_bucket_policy.json` cross-account template
   - `[ ]` Implement `src/utils/aws_client.py` bucket upload utilities

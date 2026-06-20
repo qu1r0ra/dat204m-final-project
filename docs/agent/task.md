@@ -1,0 +1,28 @@
+# Task List
+
+- `[x]` **Repository Directory Restructuring**
+  - `[x]` Request permission to move `binance_data/` to `data/raw/`
+  - `[x]` Move `binance_data/` to `data/raw/` (if approved)
+  - `[x]` Move `smoke_test/` to `data/raw/smoke_test/`
+  - `[x]` Create folder structure (`src/`, `aws/`, `notebooks/`) and package structure
+  - `[x]` Update paths and move `download_klines.py` and `smoke_test.py` to `src/pipeline/`
+  - `[x]` Move `specs.md` and `plan.md` to `docs/`
+- `[x]` **Dependency Setup**
+  - `[x]` Update `pyproject.toml` and sync dependencies
+- `[ ]` **Configuration & Pipeline Implementation (Step-by-step)**
+  - `[ ]` Implement `src/config.py` with configurable modes and parameters
+  - `[ ]` Implement `src/pipeline/preprocess.py` (optimized profiling)
+  - `[ ]` Implement `src/pipeline/sample_generator.py` (sample Parquet exporter)
+- `[ ]` **AWS Infrastructure configuration**
+  - `[ ]` Implement `aws/s3_bucket_policy.json` cross-account template
+  - `[ ]` Implement `src/utils/aws_client.py` bucket upload utilities
+- `[ ]` **ML Modules & Feature Engineering**
+  - `[ ]` Implement `src/features/indicators.py` (technical indicators in Polars)
+  - `[ ]` Implement `src/models/baselines.py` & `src/models/train.py` (parameterized training)
+- `[ ]` **Jupyter Notebook Templates**
+  - `[ ]` Implement `notebooks/01_eda_descriptive_analytics.ipynb`
+  - `[ ]` Implement `notebooks/02_ml_feature_engineering_training.ipynb`
+  - `[ ]` Implement `notebooks/03_ml_evaluation_error_analysis.ipynb`
+- `[ ]` **Documentation & Walkthrough**
+  - `[ ]` Update `docs/agent/project_context.md`
+  - `[ ]` Generate walkthrough report

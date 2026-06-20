@@ -26,7 +26,12 @@ This document serves as an agent-agnostic project context file to align team mem
 3. **Storage Policy:**
    - **No raw data files** are allowed in the project root. All data (raw CSVs and processed Parquet) must be stored in the git-ignored `data/` directory.
 4. **Configuration Tooling:**
-   - Plain Python configuration (`src/config.py`) is used instead of Hydra to avoid learning curves and debugging complexities for teammates.
+   - Plain Python configuration (`src/config.py`) is used instead of Hydra to avoid learning curves and debugging complexities for teammates. Local configuration overrides are managed via a `.env` file (loaded using `python-dotenv`).
+5. **Timestamp Heterogeneity & Normalization:**
+   - Raw Binance CSV data contains mixed formats: older files use millisecond timestamps (13 digits), while recent files use microsecond timestamps (16 digits).
+   - The preprocessing and sample generation pipelines automatically detect and normalize raw timestamps to millisecond-based datetimes on-the-fly.
+6. **Testing and Verification:**
+   - Unit and integration tests are located in the `tests/` folder and run using `pytest` against mock datasets to ensure pipeline correctness.
 
 ---
 
@@ -55,12 +60,15 @@ To keep billing independent and simplify the experience for teammates with limit
 
 ```text
 dat204m-final-project/
+├── aws/                     # AWS infrastructure scripts and configurations
+│   └── s3_bucket_policy.json # Cross-account S3 bucket policy template
 ├── data/                    # Git-ignored local data directory
 │   ├── raw/                 # Symlinks or raw CSV directories (e.g., binance_data/)
 │   └── sample/              # Compressed sample Parquet files
 ├── docs/                    # Written deliverables & report context
 │   ├── specs.md             # Professor's Project Specifications
 │   ├── team_roles.md        # Team roles and task dissemination
+│   ├── data_profile.md      # Generated dataset profiling report
 │   └── agent/               # Agent-centric context files, rules, and plans
 │       ├── project_context.md # This document
 │       ├── implementation_plan.md # Technical implementation plan
@@ -85,6 +93,9 @@ dat204m-final-project/
 │   │   └── __init__.py
 │   └── utils/               # Utility functions
 │       └── __init__.py
+├── tests/                   # pytest suite for pipeline validation
+│   └── test_pipelines.py    # Unit tests for preprocessing and sample generation
+├── .env.example             # Template file for environment variable overrides
 ├── AGENTS.md                # Rules and workflow guidelines for AI coding assistants
 ├── pyproject.toml           # uv project configuration
 ├── uv.lock                  # uv lockfile

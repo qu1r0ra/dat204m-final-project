@@ -21,7 +21,7 @@ Before concluding a session or handing off work to a future agent, perform the f
 
 1. **Review Context:** Verify that all architectural decisions, database choices, and scope updates are accurately captured in [project_context.md](docs/agent/project_context.md).
 2. **Update Context:** If any decisions were modified or refined during your run, update [project_context.md](docs/agent/project_context.md) with the new state.
-3. **Handoff Message**: When the user requests a "handoff message", generate a concise, copy-pasteable block of text summarizing current progress and exact next steps that the user can use to initiate the next agent session. Do not repeat information already present in context documents. Avoid filler words.
+3. **Handoff Message**: When the user requests a "handoff message", generate a concise, copy-pasteable block of text summarizing current progress and exact next steps that the user can use to initiate the next agent session. Do not repeat information already present in context documents, but ensure it provides sufficient guiding context for the next agent to resume work immediately. Avoid filler words.
 4. **Draft Next Steps:** List the immediate next tasks that the next agent should pick up in your final response.
 
 ---

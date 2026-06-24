@@ -160,6 +160,7 @@ Resources:
   # Glue Crawler to catalog Parquet partitions
   SampleDataCrawler:
     Type: AWS::Glue::Crawler
+    DependsOn: CentralDataBucket
     Properties:
       Name: 'binance_sample_crawler'
       Role: !GetAtt GlueCrawlerRole.Arn
@@ -174,6 +175,7 @@ Resources:
   # Glue Crawler to catalog raw partitions
   RawDataCrawler:
     Type: AWS::Glue::Crawler
+    DependsOn: CentralDataBucket
     Properties:
       Name: 'binance_raw_crawler'
       Role: !GetAtt GlueCrawlerRole.Arn

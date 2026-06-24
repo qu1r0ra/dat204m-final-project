@@ -1,6 +1,7 @@
 # Artifacts
 binance_data/
 data/
+models/
 smoke_test/
 .tmp/
 *.tmp

@@ -25,8 +25,8 @@ This document serves as an agent-agnostic project context file to align team mem
    - This local sample resides in `data/sample/` (git-ignored) for local development and rapid prototyping.
 3. **Storage Policy:**
    - **No raw data files** are allowed in the project root. All data (raw CSVs and processed Parquet) must be stored in the git-ignored `data/` directory.
-4. **Configuration Tooling:**
-   - Plain Python configuration (`src/config.py`) is used instead of Hydra to avoid learning curves and debugging complexities for teammates. Local configuration overrides are managed via a `.env` file (loaded using `python-dotenv`).
+4. **Configuration Tooling & Dynamic Paths:**
+   - Plain Python configuration (`src/config.py`) is used instead of Hydra to avoid learning curves and debugging complexities for teammates. Local configuration overrides are managed via a `.env` file (loaded using `python-dotenv`). It dynamically exposes `ACTIVE_DATA_PATH` depending on the `EXECUTION_MODE` parameter so that all notebooks switch data sources automatically.
 5. **Timestamp Heterogeneity & Normalization:**
    - Raw Binance CSV data contains mixed formats: older files use millisecond timestamps (13 digits), while recent files use microsecond timestamps (16 digits).
    - The preprocessing and sample generation pipelines automatically detect and normalize raw timestamps to millisecond-based datetimes on-the-fly.
@@ -35,7 +35,7 @@ This document serves as an agent-agnostic project context file to align team mem
 7. **SageMaker & Environment Bootstrapping**:
    - A shell script `aws/sagemaker_bootstrap.sh` is provided to automate standard SageMaker instance setup, installing dependencies via `uv sync` and linking the custom Jupyter kernel.
 8. **AWS Infrastructure Security & Compliance**:
-   - The CloudFormation deployment `aws/hub_infrastructure.yaml` mandates KMS S3 encryption (`aws:kms`), bucket access logging, Object Lock (Compliance mode, 90 days), and Customer Managed IAM Policies to satisfy all standard AWS security checks.
+   - The CloudFormation deployment `aws/hub_infrastructure.yaml` utilizes S3-managed encryption (SSE-S3 / `AES256`) for simplified cross-account teammate read access, and mandates bucket access logging, Object Lock (Compliance mode, 90 days), and Customer Managed IAM Policies to satisfy standard AWS security checks.
 9. **Model Binary Boundaries**:
    - The `models/` directory is git-ignored. The codebase remains clean of intermediate `.pkl` model artifacts; teammates train or load them locally or via S3.
 

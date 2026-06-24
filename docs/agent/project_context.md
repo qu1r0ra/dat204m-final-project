@@ -46,7 +46,7 @@ This document serves as an agent-agnostic project context file to align team mem
 To keep billing independent and simplify the experience for teammates with limited AWS knowledge:
 
 - **The Central Hub (User's AWS Account):**
-  - CENTRAL S3 BUCKET: Central S3 bucket (e.g., `dat204m-binance-bigdata-hub`).
+  - CENTRAL S3 BUCKET: Central S3 bucket (e.g., `dat204m-binance-bigdata-hub-sg`).
   - `/raw/` prefix: Stores the master deduplicated dataset.
   - `/sample/` prefix: Stores the downsampled Parquet dataset.
   - Cross-Account Bucket Policy: Resource-based policy allowing teammates' specific spoke AWS Account IDs read-only access (`s3:GetObject`, `s3:ListBucket`).

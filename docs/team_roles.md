@@ -27,7 +27,7 @@ The project is divided into four distinct roles. Each role is designed to have a
 Responsible for maintaining the system backbone, ensuring repository health, and orchestrating the final production scale-up on AWS.
 
 - **AWS Infrastructure Maintenance:**
-  - Configure and maintain the Central S3 Hub bucket (`dat204m-binance-bigdata-hub`).
+  - Configure and maintain the Central S3 Hub bucket (`dat204m-binance-bigdata-hub-sg`).
   - Implement the cross-account bucket policy and Glue Catalog permissions to allow teammates' AWS accounts to query the data via Athena.
   - Build Glue Crawlers to maintain the metadata catalog of the raw and sample datasets.
 - **Repository & Workflow Management:**

@@ -4,7 +4,7 @@ Description: 'DAT204M Final Project - Secure Central Hub S3 Bucket and Glue Cata
 Parameters:
   CentralBucketName:
     Type: String
-    Default: 'dat204m-binance-bigdata-hub'
+    Default: 'dat204m-binance-bigdata-hub-sg'
     Description: 'Globally unique name for the central S3 bucket'
   TeammateAccountIds:
     Type: CommaDelimitedList
@@ -17,17 +17,10 @@ Resources:
   # Logging Bucket for Access Logs
   CentralDataLoggingBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       BucketName: !Sub '${CentralBucketName}-logs'
-      ObjectLockEnabled: true
-      ObjectLockConfiguration:
-        ObjectLockEnabled: Enabled
-        Rule:
-          DefaultRetention:
-            Mode: COMPLIANCE
-            Days: 90
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
@@ -66,17 +59,10 @@ Resources:
   # S3 Bucket for Raw and Sample Parquet
   CentralDataBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       BucketName: !Ref CentralBucketName
-      ObjectLockEnabled: true
-      ObjectLockConfiguration:
-        ObjectLockEnabled: Enabled
-        Rule:
-          DefaultRetention:
-            Mode: COMPLIANCE
-            Days: 90
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:

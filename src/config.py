@@ -145,7 +145,7 @@ TRAIN_SPLIT_DATE = get_env_str("TRAIN_SPLIT_DATE", "2024-01-01")
 # AWS S3 Hub-and-Spoke Configurations
 # ---------------------------------------------------------------------------
 AWS_REGION = get_env_str("AWS_DEFAULT_REGION", "us-east-1")
-AWS_S3_BUCKET_NAME = get_env_str("AWS_S3_BUCKET_NAME", "dat204m-binance-bigdata-hub")
+AWS_S3_BUCKET_NAME = get_env_str("AWS_S3_BUCKET_NAME", "dat204m-binance-bigdata-hub-sg")
 AWS_S3_RAW_PREFIX = "raw/"
 AWS_S3_SAMPLE_PREFIX = "sample/"
 

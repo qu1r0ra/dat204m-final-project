@@ -15,7 +15,7 @@
         "s3:ListBucket",
         "s3:GetBucketLocation"
       ],
-      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub"
+      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub-sg"
     },
     {
       "Sid": "AllowSpokeAccountsGetObjects",
@@ -31,7 +31,7 @@
         "s3:GetObject",
         "s3:GetObjectVersion"
       ],
-      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub/*"
+      "Resource": "arn:aws:s3:::dat204m-binance-bigdata-hub-sg/*"
     }
   ]
 }

@@ -21,11 +21,20 @@ logger = logging.getLogger(__name__)
 def get_boto3_session() -> boto3.Session:
     """Initializes and returns a boto3 Session using configurations from config.py."""
     session_kwargs = {}
-    if config.AWS_ACCESS_KEY_ID:
+    if config.AWS_ACCESS_KEY_ID and config.AWS_ACCESS_KEY_ID not in (
+        "your_access_key_id_if_any",
+        "",
+    ):
         session_kwargs["aws_access_key_id"] = config.AWS_ACCESS_KEY_ID
-    if config.AWS_SECRET_ACCESS_KEY:
+    if config.AWS_SECRET_ACCESS_KEY and config.AWS_SECRET_ACCESS_KEY not in (
+        "your_secret_access_key_if_any",
+        "",
+    ):
         session_kwargs["aws_secret_access_key"] = config.AWS_SECRET_ACCESS_KEY
-    if config.AWS_SESSION_TOKEN:
+    if config.AWS_SESSION_TOKEN and config.AWS_SESSION_TOKEN not in (
+        "your_session_token_if_any",
+        "",
+    ):
         session_kwargs["aws_session_token"] = config.AWS_SESSION_TOKEN
     if config.AWS_REGION:
         session_kwargs["region_name"] = config.AWS_REGION

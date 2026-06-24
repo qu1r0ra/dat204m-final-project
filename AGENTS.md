@@ -12,6 +12,9 @@ This document defines the rules and constraints that must be followed by all AI 
 >
 > **Planning Mode Priority:**
 > When executing tasks, planning mode must be prioritized. Any architectural changes or pipeline designs must be documented in the implementation plan first.
+>
+> **Automatic Readiness Reviews:**
+> Prior to executing any major next steps (such as deploying AWS infrastructure, establishing spoke connectivity, or running model scale-up pipelines), the agent must automatically perform a comprehensive codebase readiness and architecture review, presenting findings in a structured artifact before requesting permission to execute.
 
 ---
 

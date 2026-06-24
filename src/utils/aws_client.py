@@ -117,12 +117,12 @@ def upload_sample_parquet() -> None:
     )
 
     try:
-        # Upload the file enforcing KMS encryption
+        # Upload the file enforcing SSE-S3 encryption
         s3.upload_file(
             Filename=str(local_path),
             Bucket=config.AWS_S3_BUCKET_NAME,
             Key=s3_key,
-            ExtraArgs={"ServerSideEncryption": "aws:kms"},
+            ExtraArgs={"ServerSideEncryption": "AES256"},
         )
         logger.info(
             f"Successfully uploaded dataset to: s3://{config.AWS_S3_BUCKET_NAME}/{s3_key}"

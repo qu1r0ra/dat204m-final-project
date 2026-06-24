@@ -32,6 +32,12 @@ This document serves as an agent-agnostic project context file to align team mem
    - The preprocessing and sample generation pipelines automatically detect and normalize raw timestamps to millisecond-based datetimes on-the-fly.
 6. **Testing and Verification:**
    - Unit and integration tests are located in the `tests/` folder and run using `pytest` against mock datasets to ensure pipeline correctness.
+7. **SageMaker & Environment Bootstrapping**:
+   - A shell script `aws/sagemaker_bootstrap.sh` is provided to automate standard SageMaker instance setup, installing dependencies via `uv sync` and linking the custom Jupyter kernel.
+8. **AWS Infrastructure Security & Compliance**:
+   - The CloudFormation deployment `aws/hub_infrastructure.yaml` mandates KMS S3 encryption (`aws:kms`), bucket access logging, Object Lock (Compliance mode, 90 days), and Customer Managed IAM Policies to satisfy all standard AWS security checks.
+9. **Model Binary Boundaries**:
+   - The `models/` directory is git-ignored. The codebase remains clean of intermediate `.pkl` model artifacts; teammates train or load them locally or via S3.
 
 ---
 

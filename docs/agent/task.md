@@ -9,20 +9,20 @@
   - `[x]` Move `specs.md` and `plan.md` to `docs/`
 - `[x]` **Dependency Setup**
   - `[x]` Update `pyproject.toml` and sync dependencies
-- `[ ]` **Configuration & Pipeline Implementation (Step-by-step)**
+- `[x]` **Configuration & Pipeline Implementation (Step-by-step)**
   - `[x]` Implement `src/config.py` with configurable modes and parameters
   - `[x]` Implement `src/pipeline/preprocess.py` (optimized profiling)
   - `[x]` Implement `src/pipeline/sample_generator.py` (sample Parquet exporter)
-- `[ ]` **AWS Infrastructure configuration**
+- `[x]` **AWS Infrastructure configuration**
   - `[x]` Implement `aws/s3_bucket_policy.json` cross-account template
-  - `[ ]` Implement `src/utils/aws_client.py` bucket upload utilities
-- `[ ]` **ML Modules & Feature Engineering**
-  - `[ ]` Implement `src/features/indicators.py` (technical indicators in Polars)
-  - `[ ]` Implement `src/models/baselines.py` & `src/models/train.py` (parameterized training)
-- `[ ]` **Jupyter Notebook Templates**
-  - `[ ]` Implement `notebooks/01_eda_descriptive_analytics.ipynb`
-  - `[ ]` Implement `notebooks/02_ml_feature_engineering_training.ipynb`
-  - `[ ]` Implement `notebooks/03_ml_evaluation_error_analysis.ipynb`
-- `[ ]` **Documentation & Walkthrough**
-  - `[ ]` Update `docs/agent/project_context.md`
-  - `[ ]` Generate walkthrough report
+  - `[x]` Implement `src/utils/aws_client.py` bucket upload utilities
+- `[x]` **ML Modules & Feature Engineering**
+  - `[x]` Implement `src/features/indicators.py` (technical indicators in Polars)
+  - `[x]` Implement `src/models/train.py` (parameterized training)
+- `[x]` **Jupyter Notebook Templates**
+  - `[x]` Implement `notebooks/01_eda_descriptive_analytics.ipynb`
+  - `[x]` Implement `notebooks/02_ml_feature_engineering_training.ipynb`
+  - `[x]` Implement `notebooks/03_ml_evaluation_error_analysis.ipynb`
+- `[x]` **Documentation & Walkthrough**
+  - `[x]` Update `docs/agent/project_context.md`
+  - `[x]` Generate walkthrough report

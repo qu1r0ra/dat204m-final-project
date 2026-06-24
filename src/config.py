@@ -153,3 +153,17 @@ AWS_S3_SAMPLE_PREFIX = "sample/"
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
+
+# ---------------------------------------------------------------------------
+# Dynamic Execution Data Paths
+# ---------------------------------------------------------------------------
+# Dynamically resolves the active data path based on execution mode
+if EXECUTION_MODE == "aws_hub":
+    # In S3 hub execution, load directly from S3 sample prefix
+    ACTIVE_DATA_PATH = (
+        f"s3://{AWS_S3_BUCKET_NAME}/{AWS_S3_SAMPLE_PREFIX}binance_sample.parquet"
+    )
+elif EXECUTION_MODE == "local_raw":
+    ACTIVE_DATA_PATH = str(RAW_KLINES_DIR)
+else:
+    ACTIVE_DATA_PATH = str(SAMPLE_PARQUET_PATH)

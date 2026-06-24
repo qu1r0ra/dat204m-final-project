@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DAT204M Final Project - Secure Central Hub S3 Bucket and Glue Catalog'
+
+Parameters:
+  CentralBucketName:
+    Type: String
+    Default: 'dat204m-binance-bigdata-hub'
+    Description: 'Globally unique name for the central S3 bucket'
+  TeammateAccountIds:
+    Type: CommaDelimitedList
+    Description: 'AWS Account IDs of teammates permitted read-only access to the hub data. Leave blank to default to current account.'
+
+Conditions:
+  HasTeammates: !Not [ !Equals [ !Join [ "", !Ref TeammateAccountIds ], "" ] ]
+
+Resources:
+  # Logging Bucket for Access Logs
+  CentralDataLoggingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${CentralBucketName}-logs'
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Mode: COMPLIANCE
+            Days: 90
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LoggingConfiguration:
+        DestinationBucketName: !Sub '${CentralBucketName}-logs'
+        LogFilePrefix: logging-bucket-access-logs/
+
+  # Policy to allow S3 Log Delivery to write to the Logging Bucket
+  CentralDataLoggingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CentralDataLoggingBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub 'arn:aws:s3:::${CentralBucketName}-logs/*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  # S3 Bucket for Raw and Sample Parquet
+  CentralDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref CentralBucketName
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Mode: COMPLIANCE
+            Days: 90
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LoggingConfiguration:
+        DestinationBucketName: !Ref CentralDataLoggingBucket
+        LogFilePrefix: s3-access-logs/
+
+  # Policy to grant read-only access to Spoke accounts (teammates)
+  CentralDataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasTeammates
+    Properties:
+      Bucket: !Ref CentralDataBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TeammateAccountIds
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !Sub 'arn:aws:s3:::${CentralBucketName}'
+              - !Sub 'arn:aws:s3:::${CentralBucketName}/*'
+
+  # Glue Catalog Database
+  GlueCatalogDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: 'binance_hub_db'
+        Description: 'Database containing Binance spot k-line cataloged tables'
+
+  # IAM Role for Glue Crawler
+  GlueCrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+
+  # Customer Managed Policy (Resolves IAM Roles found with inline policy alert)
+  GlueCrawlerS3Policy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GlueCrawlerS3Policy
+      Roles:
+        - !Ref GlueCrawlerRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:ListBucket
+            Resource:
+              - !Sub 'arn:aws:s3:::${CentralBucketName}'
+              - !Sub 'arn:aws:s3:::${CentralBucketName}/*'
+              - !Sub 'arn:aws:s3:::${CentralBucketName}-logs'
+              - !Sub 'arn:aws:s3:::${CentralBucketName}-logs/*'
+
+  # Glue Crawler to catalog Parquet partitions
+  SampleDataCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: 'binance_sample_crawler'
+      Role: !GetAtt GlueCrawlerRole.Arn
+      DatabaseName: !Ref GlueCatalogDatabase
+      Targets:
+        S3Targets:
+          - Path: !Sub 's3://${CentralBucketName}/sample/'
+      SchemaChangePolicy:
+        UpdateBehavior: 'UPDATE_IN_DATABASE'
+        DeleteBehavior: 'DEPRECATE_IN_DATABASE'

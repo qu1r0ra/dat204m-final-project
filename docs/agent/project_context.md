@@ -61,7 +61,9 @@ To keep billing independent and simplify the experience for teammates with limit
 ```text
 dat204m-final-project/
 ├── aws/                     # AWS infrastructure scripts and configurations
-│   └── s3_bucket_policy.json # Cross-account S3 bucket policy template
+│   ├── s3_bucket_policy.json # Cross-account S3 bucket policy template
+│   ├── hub_infrastructure.yaml # secure CloudFormation hub deployment template
+│   └── sagemaker_bootstrap.sh # SageMaker bootstrap environment configuration script
 ├── data/                    # Git-ignored local data directory
 │   ├── raw/                 # Symlinks or raw CSV directories (e.g., binance_data/)
 │   └── sample/              # Compressed sample Parquet files
@@ -88,11 +90,15 @@ dat204m-final-project/
 │   │   ├── download_klines.py # Bulk downloads raw Binance data
 │   │   └── smoke_test.py    # Downloads a subset of data for testing
 │   ├── features/            # Feature engineering indicators
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   └── indicators.py    # Polars calculations of technical indicators and stationary features
 │   ├── models/              # Machine learning models & evaluation
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   ├── train.py         # Chronological data split and Scikit-learn model train pipelines
+│   │   └── evaluation.py    # Performance calculations, confusion matrices, and ROC curves
 │   └── utils/               # Utility functions
-│       └── __init__.py
+│       ├── __init__.py
+│       └── aws_client.py    # AWS S3, CloudFormation, and Glue crawler helper client
 ├── tests/                   # pytest suite for pipeline validation
 │   └── test_pipelines.py    # Unit tests for preprocessing and sample generation
 ├── .env.example             # Template file for environment variable overrides

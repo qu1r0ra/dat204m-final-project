@@ -35,7 +35,7 @@ This document serves as an agent-agnostic project context file to align team mem
 7. **SageMaker & Environment Bootstrapping**:
    - A shell script `aws/sagemaker_bootstrap.sh` is provided to automate standard SageMaker instance setup, installing dependencies via `uv sync` and linking the custom Jupyter kernel.
 8. **AWS Infrastructure Security & Compliance**:
-   - The CloudFormation deployment `aws/hub_infrastructure.yaml` utilizes S3-managed encryption (SSE-S3 / `AES256`) for simplified cross-account teammate read access, and mandates bucket access logging, Object Lock (Compliance mode, 90 days), and Customer Managed IAM Policies to satisfy standard AWS security checks.
+   - The CloudFormation deployment `aws/hub_infrastructure.yaml` utilizes S3-managed encryption (SSE-S3 / `AES256`) for simplified cross-account teammate read access, and mandates bucket access logging and Customer Managed IAM Policies to satisfy standard AWS security checks.
 9. **Model Binary Boundaries**:
    - The `models/` directory is git-ignored. The codebase remains clean of intermediate `.pkl` model artifacts; teammates train or load them locally or via S3.
 
@@ -53,7 +53,7 @@ To keep billing independent and simplify the experience for teammates with limit
   - Glue Crawler & Catalog: Crawls the S3 prefixes and creates schema-defined tables.
 - **The Spokes (Teammates' AWS Accounts):**
   - Teammates query the Glue Catalog tables using **Amazon Athena** from their own AWS consoles.
-  - Queries are billed to the teammates' spoke accounts, but the S3 read operations are performed against the central hub. (Free within the same region, e.g., `us-east-1`).
+  - Queries are billed to the teammates' spoke accounts, but the S3 read operations are performed against the central hub. (Free within the same region, e.g., `ap-southeast-1`).
   - Local Prototyping: Teammates download the `/sample/` Parquet locally to write models.
 - **Scale-Up Execution:**
   - Code is written using a configuration toggle (e.g., local sample vs. AWS raw).

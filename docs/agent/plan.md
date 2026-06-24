@@ -20,7 +20,7 @@ To keep billing completely independent and isolated across your individual AWS a
 - **The Spokes (Teammate Accounts):**
   - **Cross-Account Access:** You apply a resource-based S3 bucket policy and Glue Catalog permissions allowing your teammates' specific AWS Account IDs to read data.
   - **Transient Compute:** Teammates use their own accounts to query data via **Amazon Athena** or spin up **Amazon SageMaker** instances to prototype models.
-  - **Billing:** Independent. Whoever initiates the compute instance pays for the instance hours. To avoid cross-region data egress charges, all members must create their accounts and resources in the exact same AWS Region (e.g., `us-east-1`).
+  - **Billing:** Independent. Whoever initiates the compute instance pays for the instance hours. To avoid cross-region data egress charges, all members must create their accounts and resources in the exact same AWS Region (e.g., `ap-southeast-1`).
 - **The Scale-Up Execution:** Hardcode identical S3 paths in your code configuration. Teammates write code pointing to the `/sample/` directory. When their local code is fully verified and ready, you will pull their final verified code into your account's SageMaker instance, switch the path string to the full `/raw/` directory, and run the 50+ GB processing scale-up.
 
 _Note: This architecture and workflow are tentative and subject to change depending on what may best suit our needs as the project progresses._

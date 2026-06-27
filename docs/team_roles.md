@@ -11,12 +11,12 @@ This document outlines the division of responsibilities and task dissemination f
 
 The project is divided into four distinct roles. Each role is designed to have a comparable workload across both Phase 1 (Descriptive Analytics) and Phase 2 (Predictive Analytics).
 
-| Role       | Title                                      | Core Focus                                                       | Member       |
-| :--------- | :----------------------------------------- | :--------------------------------------------------------------- | :----------- |
-| **Role 1** | **Cloud Infrastructure & Repository Lead** | AWS Environment, Repository Health, Integration, Scale-Up        | CJ           |
-| **Role 2** | **Data Engineering & Pipeline Lead**       | Data Ingestion, Cleaning, Profiling, Downsampling                | _Teammate A_ |
-| **Role 3** | **Machine Learning & Modeling Lead**       | Target Framing, Feature Engineering, Model Training & Eval       | _Teammate B_ |
-| **Role 4** | **Exploratory Analytics & Comms Lead**     | Descriptive Stats, Data Visualization, Report Writing, Deadlines | _Teammate C_ |
+| Role       | Title                                      | Core Focus                                                       | Member |
+| :--------- | :----------------------------------------- | :--------------------------------------------------------------- | :----- |
+| **Role 1** | **Cloud Infrastructure & Repository Lead** | AWS Environment, Repository Health, Integration, Scale-Up        | CJ     |
+| **Role 2** | **Data Engineering & Pipeline Lead**       | Data Ingestion, Cleaning, Profiling, Downsampling                | Aki    |
+| **Role 3** | **Machine Learning & Modeling Lead**       | Target Framing, Feature Engineering, Model Training & Eval       | Evan   |
+| **Role 4** | **Exploratory Analytics & Comms Lead**     | Descriptive Stats, Data Visualization, Report Writing, Deadlines | Red    |
 
 ---
 
@@ -41,7 +41,7 @@ Responsible for maintaining the system backbone, ensuring repository health, and
 
 ---
 
-### Role 2: Data Engineering & Pipeline Lead (Teammate A)
+### Role 2: Data Engineering & Pipeline Lead (Aki)
 
 Responsible for acquiring the data, building data ingestion pipelines, cleaning records, and generating the downsampled development dataset.
 
@@ -59,7 +59,7 @@ Responsible for acquiring the data, building data ingestion pipelines, cleaning 
 
 ---
 
-### Role 3: Machine Learning & Modeling Lead (Teammate B)
+### Role 3: Machine Learning & Modeling Lead (Evan)
 
 Responsible for defining the mathematical problem, engineering predictive features, training algorithms, and validating predictive quality.
 
@@ -76,7 +76,7 @@ Responsible for defining the mathematical problem, engineering predictive featur
 
 ---
 
-### Role 4: Exploratory Analytics & Comms Lead (Teammate C)
+### Role 4: Exploratory Analytics & Comms Lead (Red)
 
 Responsible for conducting descriptive analysis, creating visual assets, writing project reports, and keeping the team on schedule.
 

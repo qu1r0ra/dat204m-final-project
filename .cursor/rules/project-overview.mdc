@@ -1,0 +1,19 @@
+---
+description: "Overview of the Binance Spot K-Lines project, goals, and ML task"
+globs: "*"
+alwaysApply: true
+---
+
+# Project Overview: Binance Spot K-Lines Analytics
+
+This project involves descriptive and predictive analytics on historical Binance Spot 1-Minute K-Lines (~75+ GB raw CSVs, ~611 million rows, 558 trading pairs).
+
+## Core Course Requirements & Goals
+
+- **Phase 1 (Descriptive Analytics)**: Profile, clean, and analyze the dataset, producing descriptive stats and 5 key visualizations.
+- **Phase 2 (Predictive Analytics)**: Frame a machine learning problem, train 2+ models, and compare them against baseline performance.
+
+## Machine Learning Task: Binary Price Direction Classification
+
+- **Task**: Predict whether the return of a selected cryptocurrency ticker (e.g. `BTCUSDT`) will be positive (UP = 1) or negative/flat (DOWN = 0) over a future horizon of $N$ minutes.
+- **Configurations**: Configured dynamically via `src/config.py` (e.g. `TARGET_SYMBOL`, `FUTURE_HORIZON`, `TARGET_THRESHOLD`).

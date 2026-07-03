@@ -37,6 +37,9 @@ A high-level overview of the repository organization:
 
 ```text
 .
+├── .cursor/                  # Cursor workspace configurations and rules
+│   ├── project/              # Data and model registry definitions
+│   └── rules/                # Canonical domain rules (.mdc files)
 ├── aws/                      # AWS infrastructure scripts and configurations
 │   └── s3_bucket_policy.json # Cross-account S3 bucket policy template
 ├── data/                     # Git-ignored local data directory
@@ -45,10 +48,7 @@ A high-level overview of the repository organization:
 ├── docs/                     # Written deliverables, reports, and documentation
 │   ├── specs.md              # Project specifications
 │   ├── team_roles.md         # Team roles and task dissemination
-│   ├── data_profile.md       # Auto-generated dataset profiling report
-│   └── agent/                # Agent-centric planning and context logs
-│       ├── project_context.md
-│       └── implementation_plan.md
+│   └── data_profile.md       # Auto-generated dataset profiling report
 ├── notebooks/                # Jupyter Notebooks for deliverables
 │   ├── 01_eda_descriptive_analytics.ipynb         # Phase 1: Descriptive profiling & visualizations
 │   ├── 02_ml_feature_engineering_training.ipynb   # Phase 2: Signal features & model training
@@ -67,8 +67,10 @@ A high-level overview of the repository organization:
 │   │   └── sample_generator.py # Downsampling Parquet generator
 │   └── utils/                # General utility modules
 │       └── __init__.py
-└── tests/                    # pytest suite for validation
-    └── test_pipelines.py     # Automated tests for ingestion and processing
+├── tests/                    # pytest suite for validation
+│   └── test_pipelines.py     # Automated tests for ingestion and processing
+├── AGENTS.md                 # Agent entrypoint and rules index
+└── HANDOFF.md                # Workspace living handoff
 ```
 
 ## 3. Getting Started

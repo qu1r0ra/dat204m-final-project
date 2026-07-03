@@ -1,0 +1,24 @@
+---
+description: "Data directory policies, S3 structures, and security defaults"
+globs: "data/**/*"
+alwaysApply: true
+---
+
+# Data Organization and Storage Policies
+
+To maintain workspace cleanliness, prevent accidental commits of large datasets, and ensure secure S3 cloud access:
+
+## Local Data Rules
+
+- Do NOT store raw data or output data files in the repository root.
+- All datasets (raw CSV files and Parquet files) must reside under the `data/` directory.
+- The `data/` directory is recursively git-ignored via the root `.gitignore`.
+
+## AWS Hub-and-Spoke Architecture
+
+- **S3 Bucket**: `s3://dat204m-binance-bigdata-hub-sg/`
+- **S3 Prefixes**:
+  - `/raw/`: Stores the raw CSV monthly kline datasets.
+  - `/sample/`: Stores the downsampled Parquet dataset (`binance_sample.parquet`).
+- **Encryption**: Enforce Server-Side Encryption (`AES256` / SSE-S3) on all uploaded objects.
+- **Cross-Account Access**: Hub bucket policy allows read-only S3 access (`s3:GetObject`, `s3:ListBucket`) to teammate spoke account IDs.

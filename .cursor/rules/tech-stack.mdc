@@ -1,0 +1,24 @@
+---
+description: "Guidelines and restrictions for python libraries, uv, DuckDB, Polars, and configurations"
+globs: "*.py"
+alwaysApply: true
+---
+
+# Tech Stack & Development Guidelines
+
+Ensure all development adheres to the approved toolchain and coding guidelines.
+
+## Approved Technologies
+
+- **Python**: Version >= 3.11
+- **Package Manager**: Use `uv` (run tasks/sync using `uv run`, `uv sync`)
+- **Query Engine**: Use `duckdb` for fast processing of large raw CSV datasets (profiling and sample generation)
+- **Feature Engineering**: Use `polars` for technical indicators and features to leverage multi-threaded speed
+- **Machine Learning**: Use `scikit-learn` for training and evaluation pipelines
+- **Plotting**: Use `matplotlib` and `seaborn` for generating analytical visualizations
+
+## Configurations & Environment Setup
+
+- Avoid using complex configuration libraries like Hydra. Use simple, flat Python configuration (`src/config.py`).
+- Read credentials and local execution mode settings via environment variables (loaded from `.env` using `python-dotenv`).
+- Automatically override data paths dynamically depending on the `EXECUTION_MODE` parameter (`local_sample`, `local_raw`, `aws_hub`).

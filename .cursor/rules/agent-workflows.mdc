@@ -1,0 +1,24 @@
+---
+description: "Workflow guidelines, consent policies, markdown formatting, and tone preferences"
+globs: "*"
+alwaysApply: true
+---
+
+# Agent Workflows and Collaboration Rules
+
+AI coding assistants MUST follow these constraints strictly:
+
+## 1. Consent Before Modification
+
+- Do **NOT** write, edit, or delete any source code files (`.py`, `.ipynb`, `.toml`, etc.) or run data pipelines without first explaining the proposed changes to the user and receiving explicit approval in the chat.
+- Prioritize **Planning Mode** by detailing architectural changes or pipeline designs in the implementation plan first.
+
+## 2. Automatic Readiness Reviews
+
+- Priorprior to executing major next steps (such as deploying AWS infrastructure, establishing spoke connectivity, or running model scale-up pipelines), automatically perform a comprehensive codebase readiness and architecture review and present findings in a structured plan before requesting permission.
+
+## 3. Formatting & Style Preferences
+
+- **Relative Links Only**: Use only relative markdown links to files and directories (no absolute paths or `file:///` URLs) in the workspace docs.
+- **No Emojis**: Do NOT use emojis in any markdown documents.
+- **Professional Tone**: Keep the tone professional, objective, and clear (avoiding flowery language).

@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                        |
-| ---------------------- | ------------------------------------------------------------ |
-| **Last updated**       | 2026-07-03                                                   |
-| **Last session focus** | Handoff Alignment, Cursor Rules, & Redundant Context Pruning |
-| **Active tasks**       | Raw dataset upload (~52% complete in background task)        |
-| **Blockers**           | None                                                         |
+| Field                  | Value                                                                   |
+| ---------------------- | ----------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-03                                                              |
+| **Last session focus** | Raw Dataset S3 Verification & Glue Catalog Validation                   |
+| **Active tasks**       | None (All Phase 1 pipeline, indexing, and verification tasks completed) |
+| **Blockers**           | None                                                                    |
 
 ---
 
@@ -50,11 +50,16 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ### Ingestion Pipeline
 
-- **Raw CSVs**: Downloader script executed, all files stored locally under `data/raw/binance_data/`.
+- **Raw CSVs**: Downloader script executed, all 21,932 files stored locally under `data/raw/binance_data/`.
 - **Sample Generation**: Local sample Parquet (`data/sample/binance_sample.parquet`) successfully generated containing the top 20 liquid symbols at 1m interval.
 - **S3 Uploads**:
   - Sample Parquet dataset uploaded to `s3://dat204m-binance-bigdata-hub-sg/sample/`.
-  - Raw dataset upload is currently running as a background task (`upload_raw.py`) targeting the `raw/` S3 prefix.
+  - Raw dataset upload is fully completed and verified parallel to local storage.
+  - S3 and local data have been cross-verified (21,932 files, ~80.80 GB matched byte-for-byte).
+- **Glue Catalog Database**:
+  - Database `binance_hub_db` successfully created.
+  - Table `raw` created pointing to `s3://dat204m-binance-bigdata-hub-sg/raw/` containing all 21,932 objects (609,491,961 records).
+  - Table `sample` created pointing to `s3://dat204m-binance-bigdata-hub-sg/sample/` containing the parquet file (30,659,220 records).
 
 ### Cloud Infrastructure
 
@@ -65,11 +70,11 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ## 5. Implementation Queue
 
-| P   | Task                                                              | Component  | Status             |
-| --- | ----------------------------------------------------------------- | ---------- | ------------------ |
-| 1   | Complete raw dataset upload to central S3 bucket                  | Data       | In progress (~52%) |
-| 2   | Reorganize agent context files and rules under `.cursor/rules/`   | Agent Docs | Complete           |
-| 3   | Execute Glue Crawler (`binance_raw_crawler`) to index raw dataset | AWS        | Pending            |
-| 4   | Run descriptive analysis & profile reports                        | Notebook 1 | Complete           |
-| 5   | Train machine learning classifiers on local sample data           | Notebook 2 | Complete           |
-| 6   | Conduct evaluation and error analysis                             | Notebook 3 | Complete           |
+| P   | Task                                                              | Component  | Status   |
+| --- | ----------------------------------------------------------------- | ---------- | -------- |
+| 1   | Complete raw dataset upload to central S3 bucket                  | Data       | Complete |
+| 2   | Reorganize agent context files and rules under `.cursor/rules/`   | Agent Docs | Complete |
+| 3   | Execute Glue Crawler (`binance_raw_crawler`) to index raw dataset | AWS        | Complete |
+| 4   | Run descriptive analysis & profile reports                        | Notebook 1 | Complete |
+| 5   | Train machine learning classifiers on local sample data           | Notebook 2 | Complete |
+| 6   | Conduct evaluation and error analysis                             | Notebook 3 | Complete |

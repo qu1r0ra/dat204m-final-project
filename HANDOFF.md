@@ -43,6 +43,7 @@ Living document for agent-to-agent and session-to-session continuity across the 
 | **Teammate Access**   | Buckets configured with bucket policies allowing teammate IDs `481088927299` and `989211373646` access.         |
 | **Upload Pipeline**   | Parallelized python-boto3 multi-threaded uploader is used for raw CSV datasets to bypass missing local AWS CLI. |
 | **Testing**           | Standard pytest checks run against mock CSV arrays in `tests/test_pipelines.py`.                                |
+| **PySpark Engine**    | Parallelised profiling, UDF-based feature engineering, and MLlib training for scaling up to 75+ GB raw data.    |
 
 ---
 
@@ -66,6 +67,14 @@ Living document for agent-to-agent and session-to-session continuity across the 
 - CloudFormation stack `dat204m-binance-hub-stack` deployed.
 - Resource policies set up to grant read-only S3 access to teammate accounts.
 
+### PySpark Distributed Integration
+
+- **Profiling**: Spark-based dataset profiling script [preprocess_spark.py](src/pipeline/preprocess_spark.py) aggregates raw CSV files and writes [data_profile_spark.md](docs/data_profile_spark.md).
+- **Downsampling**: Spark downsampling script [sample_generator_spark.py](src/pipeline/sample_generator_spark.py) generates the downsampled Parquet dataset.
+- **Feature Engineering**: UDF-based [indicators_spark.py](src/features/indicators_spark.py) scales the original Polars rolling technical indicators in parallel across symbols.
+- **Machine Learning**: Spark MLlib [train_spark.py](src/models/train_spark.py) supports distributed `LogisticRegression` and `RandomForestClassifier` training on the global dataset.
+- **Testing**: Unified Spark test suite implemented in [test_spark_pipelines.py](tests/test_spark_pipelines.py).
+
 ---
 
 ## 5. Implementation Queue
@@ -78,3 +87,4 @@ Living document for agent-to-agent and session-to-session continuity across the 
 | 4   | Run descriptive analysis & profile reports                        | Notebook 1 | Complete |
 | 5   | Train machine learning classifiers on local sample data           | Notebook 2 | Complete |
 | 6   | Conduct evaluation and error analysis                             | Notebook 3 | Complete |
+| 7   | Implement distributed PySpark profiling, UDF features & MLlib     | Spark ML   | Complete |

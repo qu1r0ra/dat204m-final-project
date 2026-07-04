@@ -155,6 +155,15 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
 
 # ---------------------------------------------------------------------------
+# Spark Settings
+# ---------------------------------------------------------------------------
+SPARK_EXECUTION_MODE = get_env_str("SPARK_EXECUTION_MODE", "local")
+# Default Hadoop-AWS jar package dependencies for S3 compatibility
+SPARK_JARS_PACKAGES = (
+    "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
+)
+
+# ---------------------------------------------------------------------------
 # Dynamic Execution Data Paths
 # ---------------------------------------------------------------------------
 # Dynamically resolves the active data path based on execution mode

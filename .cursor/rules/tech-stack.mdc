@@ -12,6 +12,7 @@ Ensure all development adheres to the approved toolchain and coding guidelines.
 
 - **Python**: Version >= 3.11
 - **Package Manager**: Use `uv` (run tasks/sync using `uv run`, `uv sync`)
+- **Distributed Compute / ML**: Use `pyspark` (version 4.x) for large-scale data profiling, feature engineering, and MLlib classification models
 - **Query Engine**: Use `duckdb` for fast processing of large raw CSV datasets (profiling and sample generation)
 - **Feature Engineering**: Use `polars` for technical indicators and features to leverage multi-threaded speed
 - **Machine Learning**: Use `scikit-learn` for training and evaluation pipelines

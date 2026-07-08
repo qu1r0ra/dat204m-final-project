@@ -16,19 +16,10 @@ Canonical domain rules are defined in Cursor Rules format under [.cursor/rules/]
 
 ---
 
-## Workspace Rules (Summary)
+## Workspace Rules
 
-### 1. Consent Before Modification
+Canonical domain and collaboration rules are managed in [.cursor/rules/](.cursor/rules/). Please refer to the specific rule files for detailed guidelines:
 
-Do **NOT** write, edit, or delete any source code files (`.py`, `.ipynb`, `.toml`, etc.) or run data pipelines without first explaining the proposed changes to the user and receiving explicit approval in the chat. Document all architectural changes in the implementation plan first.
-
-### 2. Storage Constraints
-
-- Do not store raw data or output data files in the repository root.
-- All datasets must reside inside the `data/` folder, which is git-ignored.
-
-### 3. Writing & Formatting Preferences
-
-- **Relative Links Only**: Do NOT use absolute links or `file:///` paths in markdown files. Always use relative markdown links.
-- **No Emojis**: Do NOT use emojis in any markdown documents.
-- **Professional Tone**: Keep the tone professional, objective, and clear.
+- **Collaboration & Consent**: Refer to [agent-workflows.mdc](.cursor/rules/agent-workflows.mdc) for consent, reviews, and formatting guidelines.
+- **Data Policies**: Refer to [data-organization.mdc](.cursor/rules/data-organization.mdc) for local data constraints and AWS security settings.
+- **Tech Stack & Configurations**: Refer to [tech-stack.mdc](.cursor/rules/tech-stack.mdc) for guidelines on approved technologies and configurations.

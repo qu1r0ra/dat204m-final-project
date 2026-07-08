@@ -53,6 +53,11 @@ def prepare_features_and_targets(
     """Extracts features and target labels as NumPy arrays, dropping any remaining nulls."""
     clean_df = df.select(feature_cols + [target_col]).drop_nulls()
 
+    if len(clean_df) == 0:
+        raise ValueError(
+            f"No data remaining after dropping null values from feature columns: {feature_cols}"
+        )
+
     # Extract features and targets
     X = clean_df.select(feature_cols).to_numpy()
     y = clean_df.select(target_col).to_numpy().ravel()

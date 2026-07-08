@@ -14,6 +14,14 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
     Assumes input contains columns: symbol, open_time, open, high, low, close, volume.
     Returns the DataFrame with indicator columns added.
     """
+    # Validate required columns
+    required_cols = {"symbol", "open_time", "open", "high", "low", "close", "volume"}
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"Input Polars DataFrame is missing required columns: {missing}"
+        )
+
     # Ensure dataset is chronologically sorted by symbol and timestamp
     df = df.sort(["symbol", "open_time"])
 

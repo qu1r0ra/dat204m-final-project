@@ -1,0 +1,144 @@
+"""
+Data preprocessing and profiling pipeline using PySpark.
+
+Scans the raw CSV dataset, performs distributed profiling (row counts,
+date bounds, duplicate counts, and data gaps), and writes the output report
+to docs/data_profile_spark.md.
+"""
+
+import logging
+from pyspark.sql import functions as F
+from pyspark.sql.types import StructType, StructField, DoubleType, LongType
+
+import src.config as config
+from src.utils.spark_client import get_spark_session
+from src.utils.helpers import generate_profile_markdown
+
+logger = logging.getLogger(__name__)
+
+
+def run_profiling() -> None:
+    logger.info("Starting Spark-based dataset profiling...")
+
+    # Check if any files exist before launching Spark
+    base_dir = config.RAW_KLINES_DIR / "spot" / "monthly" / "klines"
+    if not base_dir.exists():
+        logger.error(f"Raw data directory does not exist: {base_dir}")
+        logger.error(
+            "Please run the downloader script first or place datasets under data/raw/binance_data/."
+        )
+        return
+
+    csv_files = list(base_dir.glob("*/1m/*.csv"))
+    if not csv_files:
+        logger.error(f"No CSV files found in: {base_dir}/*/1m/")
+        return
+
+    logger.info(f"Found {len(csv_files)} raw CSV files to profile.")
+
+    spark = get_spark_session()
+
+    # Define schema explicitly for faster loading and type safety
+    raw_schema = StructType(
+        [
+            StructField("_c0", LongType(), True),  # open_time (epoch ms)
+            StructField("_c1", DoubleType(), True),  # open
+            StructField("_c2", DoubleType(), True),  # high
+            StructField("_c3", DoubleType(), True),  # low
+            StructField("_c4", DoubleType(), True),  # close
+            StructField("_c5", DoubleType(), True),  # volume
+            StructField("_c6", LongType(), True),  # close_time (epoch ms)
+            StructField("_c7", DoubleType(), True),  # quote_asset_volume
+            StructField("_c8", LongType(), True),  # number_of_trades
+            StructField("_c9", DoubleType(), True),  # taker_buy_base_asset_volume
+            StructField("_c10", DoubleType(), True),  # taker_buy_quote_asset_volume
+            StructField("_c11", DoubleType(), True),  # ignore/unused
+        ]
+    )
+
+    paths_list = [str(p).replace("\\", "/") for p in csv_files]
+    logger.info(f"Reading {len(paths_list)} resolved raw CSVs in Spark...")
+
+    try:
+        # Load CSVs in parallel using PySpark
+        df = spark.read.schema(raw_schema).csv(paths_list, header=False)
+
+        # Add filename and extract symbol
+        df = df.withColumn("filename", F.input_file_name()).withColumn(
+            "symbol", F.regexp_extract("filename", r"([^/\\#?]+)-1m-", 1)
+        )
+
+        # Normalize open_time (handle 13-digit and 16-digit timestamps)
+        df_normalized = df.withColumn(
+            "clean_open_time",
+            F.when(
+                F.col("_c0") >= 1000000000000000, (F.col("_c0") / 1000).cast(LongType())
+            ).otherwise(F.col("_c0").cast(LongType())),
+        )
+
+        # Check for null rows in core pricing columns
+        null_check = F.when(
+            F.col("_c1").isNull()
+            | F.col("_c2").isNull()
+            | F.col("_c3").isNull()
+            | F.col("_c4").isNull()
+            | F.col("_c5").isNull(),
+            1,
+        ).otherwise(0)
+        df_normalized = df_normalized.withColumn("is_null", null_check)
+
+        logger.info("Executing Spark profiling aggregations...")
+
+        # Aggregate stats grouped by symbol (without countDistinct)
+        base_agg_df = df_normalized.groupBy("symbol").agg(
+            F.count("*").alias("row_count"),
+            F.min("clean_open_time").alias("min_time_ms"),
+            F.max("clean_open_time").alias("max_time_ms"),
+            F.sum("is_null").alias("null_values_count"),
+        )
+
+        # Calculate duplicate timestamps per symbol efficiently by grouping by (symbol, clean_open_time)
+        dup_df = (
+            df_normalized.groupBy("symbol", "clean_open_time")
+            .count()
+            .filter(F.col("count") > 1)
+            .groupBy("symbol")
+            .agg(F.sum(F.col("count") - 1).alias("duplicate_timestamps"))
+        )
+
+        # Join the base stats and duplicates
+        agg_df = base_agg_df.join(dup_df, on="symbol", how="left").fillna(
+            0, subset=["duplicate_timestamps"]
+        )
+        agg_df = agg_df.orderBy(F.desc("row_count"))
+
+        # Collect results to driver (compact summary dataset, safe to convert to Pandas)
+        df_profile = agg_df.toPandas()
+
+    except Exception as e:
+        logger.error(f"Failed to profile dataset via PySpark: {e}")
+        return
+
+    report_content = generate_profile_markdown(
+        df_profile,
+        title="Dataset Profile Report (Spark Edition)",
+        description="This report profiles the raw Binance Spot 1-Minute K-Lines using PySpark.",
+    )
+
+    # Save the output Spark profile report
+    output_profile_path = config.DOCS_DIR / "data_profile_spark.md"
+    output_profile_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_profile_path, "w") as f:
+        f.write(report_content)
+
+    logger.info(
+        f"Dataset profiling completed successfully! Spark report written to {output_profile_path}"
+    )
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
+    run_profiling()

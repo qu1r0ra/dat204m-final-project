@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                   |
-| ---------------------- | ----------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-03                                                              |
-| **Last session focus** | Raw Dataset S3 Verification & Glue Catalog Validation                   |
-| **Active tasks**       | None (All Phase 1 pipeline, indexing, and verification tasks completed) |
-| **Blockers**           | None                                                                    |
+| Field                  | Value                                                        |
+| ---------------------- | ------------------------------------------------------------ |
+| **Last updated**       | 2026-07-08                                                   |
+| **Last session focus** | Notebook PySpark Migration & Spark Client Windows Robustness |
+| **Active tasks**       | None                                                         |
+| **Blockers**           | None                                                         |
 
 ---
 
@@ -35,14 +35,13 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ## 3. Locked Architectural Decisions
 
-| Topic                 | Decision                                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Thesis Context**    | Canonical rules defined under `.cursor/rules/`.                                                                 |
-| **Data Directory**    | All data (raw CSV files and Parquet files) must reside in the git-ignored `data/` directory.                    |
-| **AWS Hub-and-Spoke** | Central Hub account hosts `s3://dat204m-binance-bigdata-hub-sg/` with spoke accounts granted read-only access.  |
-| **Teammate Access**   | Buckets configured with bucket policies allowing teammate IDs `481088927299` and `989211373646` access.         |
-| **Upload Pipeline**   | Parallelized python-boto3 multi-threaded uploader is used for raw CSV datasets to bypass missing local AWS CLI. |
-| **Testing**           | Standard pytest checks run against mock CSV arrays in `tests/test_pipelines.py`.                                |
+Architectural decisions are managed canonically in `.cursor/rules/` and project registries.
+
+- **Project Overview**: See [project-overview.mdc](.cursor/rules/project-overview.mdc).
+- **Data & Directory Structure**: All raw and output data must reside in `data/` (git-ignored). See [data-organization.mdc](.cursor/rules/data-organization.mdc) and [data_registry.md](.cursor/project/data_registry.md).
+- **AWS Hub-and-Spoke & Security**: Encryption and teammate access policies are defined in [data-organization.mdc](.cursor/rules/data-organization.mdc).
+- **Tech Stack & Computations**: PySpark, DuckDB, Polars, and configuration guidelines are defined in [tech-stack.mdc](.cursor/rules/tech-stack.mdc).
+- **Workflow & Rules**: Review [agent-workflows.mdc](.cursor/rules/agent-workflows.mdc) and [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -66,15 +65,21 @@ Living document for agent-to-agent and session-to-session continuity across the 
 - CloudFormation stack `dat204m-binance-hub-stack` deployed.
 - Resource policies set up to grant read-only S3 access to teammate accounts.
 
+### PySpark Distributed Integration
+
+- **Profiling**: Spark-based dataset profiling script [preprocess_spark.py](src/pipeline/preprocess_spark.py) aggregates raw CSV files and writes [data_profile_spark.md](docs/data_profile_spark.md).
+- **Downsampling**: Spark downsampling script [sample_generator_spark.py](src/pipeline/sample_generator_spark.py) generates the downsampled Parquet dataset.
+- **Feature Engineering**: UDF-based [indicators_spark.py](src/features/indicators_spark.py) scales the original Polars rolling technical indicators in parallel across symbols.
+- **Machine Learning**: Spark MLlib [train_spark.py](src/models/train_spark.py) supports distributed `LogisticRegression` and `RandomForestClassifier` training on the global dataset.
+- **Testing**: Test suite split into fast unit tests (`tests/test_pipelines.py`, runs in <1s) and slow Spark integration tests (`tests/test_spark_pipelines.py`, runs in ~1m). Spark tests are fully compatible with Windows platforms using path resolution, `PYSPARK_PYTHON` configuration, parquet read/write mocks, and timezone-agnostic split boundaries.
+- **Refactoring & Code Quality**: Extracted shared utility helpers for time formatting and report generation into [helpers.py](src/utils/helpers.py), added input column validations in [indicators.py](src/features/indicators.py), added runtime data checks in [train.py](src/models/train.py) and [train_spark.py](src/models/train_spark.py), and deduplicated Java options across Spark configurations.
+- **Spark Client Windows Compatibility**: Integrated dynamic `HADOOP_HOME` configuration and local `winutils.exe` provisioning directly inside [spark_client.py](src/utils/spark_client.py). Configured `PYSPARK_PYTHON` and `PYSPARK_DRIVER_PYTHON` environment variables to point directly to `sys.executable`, eliminating Python worker connection timeouts and runtime environment mismatch errors on Windows systems.
+- **Notebook Migration**: Upgraded Phase 1 EDA notebook [01_eda_descriptive_analytics.ipynb](notebooks/01_eda_descriptive_analytics.ipynb) to utilize the distributed PySpark pipeline for data loading, descriptive analytics, parallel feature engineering, and binary price direction labeling. Converted Spark DataFrames back to Polars DataFrames locally to preserve contract compatibility with downstream visualization cells.
+
 ---
 
 ## 5. Implementation Queue
 
-| P   | Task                                                              | Component  | Status   |
-| --- | ----------------------------------------------------------------- | ---------- | -------- |
-| 1   | Complete raw dataset upload to central S3 bucket                  | Data       | Complete |
-| 2   | Reorganize agent context files and rules under `.cursor/rules/`   | Agent Docs | Complete |
-| 3   | Execute Glue Crawler (`binance_raw_crawler`) to index raw dataset | AWS        | Complete |
-| 4   | Run descriptive analysis & profile reports                        | Notebook 1 | Complete |
-| 5   | Train machine learning classifiers on local sample data           | Notebook 2 | Complete |
-| 6   | Conduct evaluation and error analysis                             | Notebook 3 | Complete |
+_No active tasks in the queue. All planned tasks have been completed._
+
+_For archived tasks (1-10), see [session_history.md](docs/session_history.md)._

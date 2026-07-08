@@ -72,12 +72,12 @@ def run_profiling() -> None:
         ]
     )
 
-    csv_pattern_str = csv_pattern.replace("\\", "/")
-    logger.info(f"Reading raw CSVs from: {csv_pattern_str}")
+    paths_list = [str(p).replace("\\", "/") for p in csv_files]
+    logger.info(f"Reading {len(paths_list)} resolved raw CSVs in Spark...")
 
     try:
         # Load CSVs in parallel using PySpark
-        df = spark.read.schema(raw_schema).csv(csv_pattern_str, header=False)
+        df = spark.read.schema(raw_schema).csv(paths_list, header=False)
 
         # Add filename and extract symbol
         df = df.withColumn("filename", F.input_file_name()).withColumn(

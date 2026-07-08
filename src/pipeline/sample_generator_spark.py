@@ -30,8 +30,8 @@ def generate_sample() -> None:
         if symbol_dir.exists():
             csv_files = list(symbol_dir.glob("*.csv"))
             if csv_files:
-                # Add the glob pattern for Spark to read
-                valid_paths.append(str(symbol_dir / "*.csv"))
+                # Add the resolved file paths directly for Spark to read
+                valid_paths.extend([str(p) for p in csv_files])
                 logger.info(
                     f"Adding symbol {symbol} with {len(csv_files)} files to sample."
                 )

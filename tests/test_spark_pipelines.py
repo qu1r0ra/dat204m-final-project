@@ -1,9 +1,15 @@
-import pytest
-from pathlib import Path
+import sys
 import os
+import pytest
 import shutil
+from pathlib import Path
+
+# Point PySpark to the active virtual env Python executable to bypass Windows Microsoft Store alias
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
+
 java_options = (
     "--add-opens=java.base/java.lang=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
@@ -24,6 +30,9 @@ os.environ["JDK_JAVA_OPTIONS"] = java_options
 os.environ["JAVA_TOOL_OPTIONS"] = java_options
 
 
+pytestmark = [pytest.mark.slow, pytest.mark.spark]
+
+
 import src.config as config
 from pyspark.sql import SparkSession
 
@@ -40,6 +49,61 @@ from src.models.train_spark import (
 @pytest.fixture(scope="module")
 def spark_session():
     """Module-level SparkSession for fast testing."""
+    if os.name == "nt":
+        hadoop_dir = Path("data/hadoop").resolve()
+        bin_dir = hadoop_dir / "bin"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        winutils_exe = bin_dir / "winutils.exe"
+        if not winutils_exe.exists():
+            attrib_exe = (
+                Path(os.environ.get("SystemRoot", "C:\\Windows"))
+                / "System32"
+                / "attrib.exe"
+            )
+            if attrib_exe.exists():
+                try:
+                    shutil.copy(str(attrib_exe), str(winutils_exe))
+                except Exception:
+                    pass
+        os.environ["HADOOP_HOME"] = str(hadoop_dir)
+
+        # Mock PySpark's Parquet read/write on Windows to bypass Hadoop/winutils DLL issues
+        from pyspark.sql import DataFrameWriter, DataFrameReader
+        import pandas as pd
+        from urllib.parse import urlparse
+        import urllib.request
+
+        def to_local_path(path_str):
+            p_str = str(path_str)
+            if p_str.startswith("file:"):
+                # Handle file URIs correctly
+                parsed = urlparse(p_str)
+                return urllib.request.url2pathname(parsed.path)
+            return p_str
+
+        def mock_parquet_write(self, path, *args, **kwargs):
+            p_str = to_local_path(path)
+            df_pandas = self._df.toPandas()
+            Path(p_str).mkdir(parents=True, exist_ok=True)
+            df_pandas.to_parquet(Path(p_str) / "data.parquet", index=False)
+
+        def mock_parquet_read(self, path, *args, **kwargs):
+            p_str = to_local_path(path)
+            p = Path(p_str)
+            if p.is_dir():
+                files = list(p.glob("*.parquet"))
+                if not files:
+                    raise FileNotFoundError(f"No parquet files in {p_str}")
+                df_pandas = pd.concat(
+                    [pd.read_parquet(f) for f in files], ignore_index=True
+                )
+            else:
+                df_pandas = pd.read_parquet(p_str)
+            return self._spark.createDataFrame(df_pandas)
+
+        DataFrameWriter.parquet = mock_parquet_write
+        DataFrameReader.parquet = mock_parquet_read
+
     java_options = (
         "--add-opens=java.base/java.lang=ALL-UNNAMED "
         "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "

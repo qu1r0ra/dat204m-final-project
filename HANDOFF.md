@@ -71,15 +71,12 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Downsampling**: Spark downsampling script [sample_generator_spark.py](src/pipeline/sample_generator_spark.py) generates the downsampled Parquet dataset.
 - **Feature Engineering**: UDF-based [indicators_spark.py](src/features/indicators_spark.py) scales the original Polars rolling technical indicators in parallel across symbols.
 - **Machine Learning**: Spark MLlib [train_spark.py](src/models/train_spark.py) supports distributed `LogisticRegression` and `RandomForestClassifier` training on the global dataset.
-- **Testing**: Unified Spark test suite implemented in [test_spark_pipelines.py](tests/test_spark_pipelines.py).
+- **Testing**: Test suite split into fast unit tests (`tests/test_pipelines.py`, runs in <1s) and slow Spark integration tests (`tests/test_spark_pipelines.py`, runs in ~1m). Spark tests are fully compatible with Windows platforms using path resolution, `PYSPARK_PYTHON` configuration, and parquet read/write mocks.
 
 ---
 
 ## 5. Implementation Queue
 
-| P   | Task                                                               | Component | Status    |
-| --- | ------------------------------------------------------------------ | --------- | --------- |
-| 8   | Verify local Java 21 execution for Spark and generate data profile | Spark ML  | Completed |
-| 9   | Refactor codebase and optimize production dependencies             | DevOps    | Completed |
+_No active tasks in the queue. All planned tasks have been completed._
 
-_For archived tasks (1-7), see [session_history.md](docs/session_history.md)._
+_For archived tasks (1-10), see [session_history.md](docs/session_history.md)._

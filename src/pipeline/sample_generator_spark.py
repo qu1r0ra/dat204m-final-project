@@ -7,8 +7,6 @@ data/sample/binance_sample_spark.parquet.
 """
 
 import logging
-import os
-from pathlib import Path
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType, LongType, IntegerType
 

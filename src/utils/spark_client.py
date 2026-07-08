@@ -9,7 +9,7 @@ import logging
 import os
 
 # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-java_options = (
+JAVA_OPTIONS = (
     "--add-opens=java.base/java.lang=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
@@ -25,12 +25,12 @@ java_options = (
     "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
     "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
 )
-os.environ["JDK_JAVA_OPTIONS"] = java_options
-os.environ["JAVA_TOOL_OPTIONS"] = java_options
+os.environ["JDK_JAVA_OPTIONS"] = JAVA_OPTIONS
+os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
 
 
-import src.config as config
-from pyspark.sql import SparkSession
+import src.config as config  # noqa: E402
+from pyspark.sql import SparkSession  # noqa: E402
 
 
 logger = logging.getLogger(__name__)
@@ -43,8 +43,8 @@ def get_spark_session() -> SparkSession:
     builder = (
         SparkSession.builder.appName("BinanceKLinesAnalytics")
         .config("spark.sql.session.timeZone", "UTC")
-        .config("spark.driver.extraJavaOptions", java_options)
-        .config("spark.executor.extraJavaOptions", java_options)
+        .config("spark.driver.extraJavaOptions", JAVA_OPTIONS)
+        .config("spark.executor.extraJavaOptions", JAVA_OPTIONS)
     )
 
     # Configure master local mode or defer to cluster resource manager

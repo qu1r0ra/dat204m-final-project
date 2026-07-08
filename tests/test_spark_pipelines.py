@@ -9,25 +9,7 @@ os.environ["PYSPARK_PYTHON"] = sys.executable
 os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-
-java_options = (
-    "--add-opens=java.base/java.lang=ALL-UNNAMED "
-    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
-    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
-    "--add-opens=java.base/java.io=ALL-UNNAMED "
-    "--add-opens=java.base/java.net=ALL-UNNAMED "
-    "--add-opens=java.base/java.nio=ALL-UNNAMED "
-    "--add-opens=java.base/java.util=ALL-UNNAMED "
-    "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED "
-    "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED "
-    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
-    "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED "
-    "--add-opens=java.base/sun.security.action=ALL-UNNAMED "
-    "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
-    "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
-)
-os.environ["JDK_JAVA_OPTIONS"] = java_options
-os.environ["JAVA_TOOL_OPTIONS"] = java_options
+from src.utils.spark_client import JAVA_OPTIONS
 
 
 pytestmark = [pytest.mark.slow, pytest.mark.spark]
@@ -104,28 +86,12 @@ def spark_session():
         DataFrameWriter.parquet = mock_parquet_write
         DataFrameReader.parquet = mock_parquet_read
 
-    java_options = (
-        "--add-opens=java.base/java.lang=ALL-UNNAMED "
-        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
-        "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
-        "--add-opens=java.base/java.io=ALL-UNNAMED "
-        "--add-opens=java.base/java.net=ALL-UNNAMED "
-        "--add-opens=java.base/java.nio=ALL-UNNAMED "
-        "--add-opens=java.base/java.util=ALL-UNNAMED "
-        "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED "
-        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED "
-        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
-        "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED "
-        "--add-opens=java.base/sun.security.action=ALL-UNNAMED "
-        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
-        "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
-    )
     spark = (
         SparkSession.builder.master("local[2]")
         .appName("TestSparkPipelines")
         .config("spark.sql.session.timeZone", "UTC")
-        .config("spark.driver.extraJavaOptions", java_options)
-        .config("spark.executor.extraJavaOptions", java_options)
+        .config("spark.driver.extraJavaOptions", JAVA_OPTIONS)
+        .config("spark.executor.extraJavaOptions", JAVA_OPTIONS)
         .getOrCreate()
     )
     yield spark
@@ -150,26 +116,26 @@ def mock_spark_env(tmp_path, monkeypatch):
     btc_dir.mkdir(parents=True, exist_ok=True)
     eth_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write 60 mock rows for BTCUSDT and ETHUSDT to satisfy indicator window constraints
+    # Write 100 mock rows for BTCUSDT and ETHUSDT to satisfy indicator window constraints
     # (e.g. sma_50 requires at least 50 periods)
     btc_csv = btc_dir / "BTCUSDT-1m-2024-01.csv"
     with open(btc_csv, "w") as f:
         base_time = 1704067200000  # 2024-01-01 00:00:00 UTC
-        for i in range(65):
+        for i in range(100):
             t = base_time + i * 60000
             price = 42000.0 + i * 10.0
             f.write(
-                f"{t},{price},{price+5},{price-5},{price},10.0,{t+59999},420000.0,100,5.0,210000.0,0\n"
+                f"{t},{price},{price + 5},{price - 5},{price},10.0,{t + 59999},420000.0,100,5.0,210000.0,0\n"
             )
 
     eth_csv = eth_dir / "ETHUSDT-1m-2024-01.csv"
     with open(eth_csv, "w") as f:
         base_time = 1704067200000
-        for i in range(65):
+        for i in range(100):
             t = base_time + i * 60000
             price = 2200.0 + i * 2.0
             f.write(
-                f"{t},{price},{price+1},{price-1},{price},50.0,{t+59999},110000.0,80,25.0,55000.0,0\n"
+                f"{t},{price},{price + 1},{price - 1},{price},50.0,{t + 59999},110000.0,80,25.0,55000.0,0\n"
             )
 
     return {
@@ -227,7 +193,7 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
 
     # 2. Read back using Spark
     df = spark_session.read.parquet(parquet_path_str)
-    assert df.count() == 130  # 65 rows * 2 symbols
+    assert df.count() == 200  # 100 rows * 2 symbols
 
     # 3. Compute indicators
     df_features = compute_indicators_spark(df)
@@ -239,14 +205,36 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     df_labeled = compute_targets_spark(df_features)
     assert "target" in df_labeled.columns
 
-    # We should have rows remaining after warmups are dropped (65 - 50 = 15 rows per symbol)
+    # We should have rows remaining after warmups are dropped (100 - 49 - 15 = 36 rows per symbol)
     total_labeled = df_labeled.count()
     assert total_labeled > 0
 
-    # 5. Split chronologically
-    # Our mock dates are all 2024-01-01. Split before/after mid-day to verify partitions.
+    # 5. Split chronologically using dynamically calculated timestamp bounds to bypass local timezone offsets
+    from pyspark.sql import functions as F
+    import datetime
+
+    times = df_labeled.select(F.min("open_time"), F.max("open_time")).collect()[0]
+    min_time = times[0]
+    max_time = times[1]
+
+    # Calculate timezone-independent epoch bounds
+    min_epoch = min_time.timestamp()
+    max_epoch = max_time.timestamp()
+    delta_epoch = max_epoch - min_epoch
+
+    train_end_epoch = min_epoch + delta_epoch * 0.5
+    val_end_epoch = min_epoch + delta_epoch * 0.75
+
+    train_end_dt = datetime.datetime.fromtimestamp(
+        train_end_epoch, datetime.timezone.utc
+    )
+    val_end_dt = datetime.datetime.fromtimestamp(val_end_epoch, datetime.timezone.utc)
+
+    train_end_str = train_end_dt.strftime("%Y-%m-%d %H:%M:%S")
+    val_end_str = val_end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
     train_df, val_df, test_df = split_data_chronologically_spark(
-        df_labeled, train_end="2024-01-01 00:30:00", val_end="2024-01-01 00:50:00"
+        df_labeled, train_end=train_end_str, val_end=val_end_str
     )
 
     # 6. Train pipelines

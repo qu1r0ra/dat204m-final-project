@@ -6,24 +6,14 @@ date bounds, duplicate counts, and data gaps), and writes the output report
 to docs/data_profile.md.
 """
 
-import datetime
 import logging
 import duckdb
 
 import src.config as config
+from src.utils.helpers import generate_profile_markdown
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-def ms_to_str(ms: float) -> str:
-    """Converts epoch milliseconds to formatted UTC timestamp string."""
-    try:
-        return datetime.datetime.fromtimestamp(
-            ms / 1000.0, datetime.timezone.utc
-        ).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ms)
 
 
 def run_profiling() -> None:
@@ -77,53 +67,17 @@ def run_profiling() -> None:
         logger.error(f"Failed to profile dataset via DuckDB: {e}")
         return
 
-    df_profile["start_date"] = df_profile["min_time_ms"].apply(ms_to_str)
-    df_profile["end_date"] = df_profile["max_time_ms"].apply(ms_to_str)
-
-    # Calculate missing intervals
-    # 1 minute = 60,000 milliseconds
-    df_profile["expected_rows"] = (
-        (df_profile["max_time_ms"] - df_profile["min_time_ms"]) / 60000 + 1
-    ).astype(int)
-    df_profile["missing_rows"] = df_profile["expected_rows"] - df_profile["row_count"]
-    df_profile["gap_percentage"] = (
-        df_profile["missing_rows"] / df_profile["expected_rows"] * 100
-    ).round(4)
-
-    # Generate profile report content
-    total_symbols = len(df_profile)
-    total_rows = df_profile["row_count"].sum()
-    total_duplicates = df_profile["duplicate_timestamps"].sum()
-    total_nulls = df_profile["null_values_count"].sum()
-
-    report_lines = [
-        "# Dataset Profile Report",
-        "",
-        "This report profiles the raw Binance Spot 1-Minute K-Lines downloaded to the repository.",
-        "",
-        "## Summary Metrics",
-        "",
-        "- **Total Unique Symbols**: " + str(total_symbols),
-        f"- **Total Rows (Observations)**: {total_rows:,}",
-        f"- **Total Duplicate Timestamps**: {total_duplicates}",
-        f"- **Total Rows with Null Values**: {total_nulls}",
-        "",
-        "## Detailed Symbol Analysis",
-        "",
-        "| Symbol | Total Rows | Expected Rows | Gaps (Rows) | Gap % | Start Date (UTC) | End Date (UTC) | Duplicates | Nulls |",
-        "| :--- | :---: | :---: | :---: | :---: | :--- | :--- | :---: | :---: |",
-    ]
-
-    for _, row in df_profile.iterrows():
-        report_lines.append(
-            f"| {row['symbol']} | {row['row_count']:,} | {row['expected_rows']:,} | {row['missing_rows']:,} | {row['gap_percentage']}% | {row['start_date']} | {row['end_date']} | {row['duplicate_timestamps']} | {row['null_values_count']} |"
-        )
+    report_content = generate_profile_markdown(
+        df_profile,
+        title="Dataset Profile Report",
+        description="This report profiles the raw Binance Spot 1-Minute K-Lines downloaded to the repository.",
+    )
 
     # Ensure output docs folder exists
     config.DATA_PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     with open(config.DATA_PROFILE_PATH, "w") as f:
-        f.write("\n".join(report_lines) + "\n")
+        f.write(report_content)
 
     logger.info(
         f"Dataset profiling completed successfully! Report written to {config.DATA_PROFILE_PATH}"

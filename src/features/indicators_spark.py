@@ -6,11 +6,11 @@ across symbols using Spark Pandas Grouped Map UDFs (applyInPandas).
 """
 
 import polars as pl
+from pyspark.sql import DataFrame
 from pyspark.sql.types import (
     StructType,
     StructField,
     DoubleType,
-    LongType,
     TimestampType,
     StringType,
     IntegerType,
@@ -60,7 +60,7 @@ INDICATOR_SCHEMA = StructType(
 )
 
 
-def compute_indicators_spark(spark_df) -> pl.DataFrame:
+def compute_indicators_spark(spark_df: DataFrame) -> DataFrame:
     """Computes technical indicators and stationary features on a PySpark DataFrame.
 
     Uses applyInPandas to run the optimized Polars feature engineering in parallel

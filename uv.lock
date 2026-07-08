@@ -492,11 +492,7 @@ name = "dat204m-final-project"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "binance-historical-data" },
     { name = "boto3" },
-    { name = "duckdb" },
-    { name = "ipykernel" },
-    { name = "matplotlib" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas" },
@@ -504,37 +500,41 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pyspark" },
     { name = "python-dotenv" },
-    { name = "scikit-learn" },
-    { name = "seaborn" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "binance-historical-data" },
+    { name = "duckdb" },
+    { name = "ipykernel" },
+    { name = "matplotlib" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "scikit-learn" },
+    { name = "seaborn" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "binance-historical-data", specifier = ">=0.1.14" },
     { name = "boto3", specifier = ">=1.43.34" },
-    { name = "duckdb", specifier = ">=1.5.4" },
-    { name = "ipykernel", specifier = ">=7.3.0" },
-    { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "polars", specifier = ">=1.41.2" },
     { name = "pyarrow", specifier = ">=24.0.0" },
     { name = "pyspark", specifier = ">=4.1.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "scikit-learn", specifier = ">=1.9.0" },
-    { name = "seaborn", specifier = ">=0.13.2" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "binance-historical-data", specifier = ">=0.1.14" },
+    { name = "duckdb", specifier = ">=1.5.4" },
+    { name = "ipykernel", specifier = ">=7.3.0" },
+    { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.15.18" },
+    { name = "scikit-learn", specifier = ">=1.9.0" },
+    { name = "seaborn", specifier = ">=0.13.2" },
 ]
 
 [[package]]

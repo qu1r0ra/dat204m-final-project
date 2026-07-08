@@ -18,6 +18,16 @@ from src.utils.spark_client import get_spark_session
 logger = logging.getLogger(__name__)
 
 
+def ms_to_str(ms: float) -> str:
+    """Converts epoch milliseconds to formatted UTC timestamp string."""
+    try:
+        return datetime.datetime.fromtimestamp(
+            ms / 1000.0, datetime.timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(ms)
+
+
 def run_profiling() -> None:
     logger.info("Starting Spark-based dataset profiling...")
 
@@ -95,21 +105,28 @@ def run_profiling() -> None:
 
         logger.info("Executing Spark profiling aggregations...")
 
-        # Aggregate stats grouped by symbol
-        agg_df = (
-            df_normalized.groupBy("symbol")
-            .agg(
-                F.count("*").alias("row_count"),
-                F.min("clean_open_time").alias("min_time_ms"),
-                F.max("clean_open_time").alias("max_time_ms"),
-                # Note: countDistinct can be slow, but is standard for duplicate tracking
-                (F.count("clean_open_time") - F.countDistinct("clean_open_time")).alias(
-                    "duplicate_timestamps"
-                ),
-                F.sum("is_null").alias("null_values_count"),
-            )
-            .orderBy(F.desc("row_count"))
+        # Aggregate stats grouped by symbol (without countDistinct)
+        base_agg_df = df_normalized.groupBy("symbol").agg(
+            F.count("*").alias("row_count"),
+            F.min("clean_open_time").alias("min_time_ms"),
+            F.max("clean_open_time").alias("max_time_ms"),
+            F.sum("is_null").alias("null_values_count"),
         )
+
+        # Calculate duplicate timestamps per symbol efficiently by grouping by (symbol, clean_open_time)
+        dup_df = (
+            df_normalized.groupBy("symbol", "clean_open_time")
+            .count()
+            .filter(F.col("count") > 1)
+            .groupBy("symbol")
+            .agg(F.sum(F.col("count") - 1).alias("duplicate_timestamps"))
+        )
+
+        # Join the base stats and duplicates
+        agg_df = base_agg_df.join(dup_df, on="symbol", how="left").fillna(
+            0, subset=["duplicate_timestamps"]
+        )
+        agg_df = agg_df.orderBy(F.desc("row_count"))
 
         # Collect results to driver (compact summary dataset, safe to convert to Pandas)
         df_profile = agg_df.toPandas()
@@ -117,14 +134,6 @@ def run_profiling() -> None:
     except Exception as e:
         logger.error(f"Failed to profile dataset via PySpark: {e}")
         return
-
-    def ms_to_str(ms):
-        try:
-            return datetime.datetime.fromtimestamp(
-                ms / 1000.0, datetime.timezone.utc
-            ).strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            return str(ms)
 
     df_profile["start_date"] = df_profile["min_time_ms"].apply(ms_to_str)
     df_profile["end_date"] = df_profile["max_time_ms"].apply(ms_to_str)

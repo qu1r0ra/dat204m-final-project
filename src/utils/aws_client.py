@@ -18,6 +18,18 @@ import src.config as config
 logger = logging.getLogger(__name__)
 
 
+class AWSError(Exception):
+    """Base exception for AWS client operations."""
+
+    pass
+
+
+class CrawlerTimeoutError(AWSError):
+    """Exception raised when Glue Crawler times out."""
+
+    pass
+
+
 def get_boto3_session() -> boto3.Session:
     """Initializes and returns a boto3 Session using configurations from config.py."""
     session_kwargs = {}
@@ -50,8 +62,7 @@ def deploy_stack(teammate_ids: list[str] = None) -> None:
     template_path = config.PROJECT_ROOT / "aws" / "hub_infrastructure.yaml"
 
     if not template_path.exists():
-        logger.error(f"CloudFormation template not found at: {template_path}")
-        sys.exit(1)
+        raise AWSError(f"CloudFormation template not found at: {template_path}")
 
     with open(template_path, "r") as f:
         template_body = f.read()
@@ -104,8 +115,7 @@ def deploy_stack(teammate_ids: list[str] = None) -> None:
         if "No updates are to be performed" in str(e):
             logger.info("No stack modifications or updates needed.")
         else:
-            logger.error(f"CloudFormation deployment failed: {e}")
-            sys.exit(1)
+            raise AWSError(f"CloudFormation deployment failed: {e}") from e
 
 
 def upload_sample_parquet() -> None:
@@ -115,10 +125,9 @@ def upload_sample_parquet() -> None:
     local_path = config.SAMPLE_PARQUET_PATH
 
     if not local_path.exists():
-        logger.error(
+        raise AWSError(
             f"Local sample Parquet file not found at: {local_path}. Please run sample_generator first."
         )
-        sys.exit(1)
 
     s3_key = f"{config.AWS_S3_SAMPLE_PREFIX}{local_path.name}"
     logger.info(
@@ -137,11 +146,12 @@ def upload_sample_parquet() -> None:
             f"Successfully uploaded dataset to: s3://{config.AWS_S3_BUCKET_NAME}/{s3_key}"
         )
     except Exception as e:
-        logger.error(f"Failed to upload sample Parquet to S3: {e}")
-        sys.exit(1)
+        raise AWSError(f"Failed to upload sample Parquet to S3: {e}") from e
 
 
-def run_glue_crawler() -> None:
+def run_glue_crawler(
+    timeout_seconds: int = 600, poll_interval_seconds: int = 15
+) -> None:
     """Triggers the Glue Crawler and monitors its execution state until completion."""
     session = get_boto3_session()
     glue = session.client("glue")
@@ -154,11 +164,15 @@ def run_glue_crawler() -> None:
     except glue.exceptions.CrawlerRunningException:
         logger.warning("Crawler is already executing.")
     except Exception as e:
-        logger.error(f"Failed to start crawler: {e}")
-        sys.exit(1)
+        raise AWSError(f"Failed to start crawler: {e}") from e
 
     logger.info("Waiting for Glue Crawler execution to complete...")
+    start_time = time.time()
     while True:
+        if time.time() - start_time > timeout_seconds:
+            raise CrawlerTimeoutError(
+                f"Glue Crawler execution timed out after {timeout_seconds} seconds."
+            )
         try:
             status_res = glue.get_crawler(Name=crawler_name)
             state = status_res["Crawler"]["State"]
@@ -169,11 +183,14 @@ def run_glue_crawler() -> None:
                 logger.info(
                     f"Crawler execution completed. Final Crawl Status: {run_status}"
                 )
+                if run_status == "FAILED":
+                    raise AWSError("Glue Crawler execution failed.")
                 break
         except Exception as e:
-            logger.error(f"Failed to check crawler state: {e}")
-            sys.exit(1)
-        time.sleep(15)
+            if isinstance(e, AWSError):
+                raise e
+            raise AWSError(f"Failed to check crawler state: {e}") from e
+        time.sleep(poll_interval_seconds)
 
 
 def main() -> None:
@@ -219,16 +236,20 @@ def main() -> None:
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
-    if args.command == "deploy-stack":
-        deploy_stack(args.teammates)
-    elif args.command == "upload-sample":
-        upload_sample_parquet()
-    elif args.command == "run-crawler":
-        run_glue_crawler()
-    elif args.command == "deploy-all":
-        deploy_stack(args.teammates)
-        upload_sample_parquet()
-        run_glue_crawler()
+    try:
+        if args.command == "deploy-stack":
+            deploy_stack(args.teammates)
+        elif args.command == "upload-sample":
+            upload_sample_parquet()
+        elif args.command == "run-crawler":
+            run_glue_crawler()
+        elif args.command == "deploy-all":
+            deploy_stack(args.teammates)
+            upload_sample_parquet()
+            run_glue_crawler()
+    except AWSError as e:
+        logger.error(f"AWS operations failed: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -113,11 +113,10 @@ def generate_sample() -> None:
             f"Writing compressed sample Parquet to: {spark_parquet_path_str}..."
         )
 
-        # Write output in sorted order, partitioning by symbol is standard for multi-ticker querying
-        # However, to maintain exact 1-to-1 compatibility with the existing DuckDB output file layout
-        # (which is a single sorted parquet file, not partitioned directory structure),
-        # we sort the partition and write.
-        df_processed.write.mode("overwrite").option("compression", "zstd").parquet(
+        # Sort chronologically by symbol and open_time to maintain 1-to-1 compatibility with local DuckDB output
+        df_sorted = df_processed.orderBy("symbol", "open_time")
+
+        df_sorted.write.mode("overwrite").option("compression", "zstd").parquet(
             spark_parquet_path_str
         )
 

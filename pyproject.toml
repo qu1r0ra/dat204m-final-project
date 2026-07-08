@@ -5,23 +5,23 @@ description = "Big data pipeline and machine learning project for Binance Spot K
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "binance-historical-data>=0.1.14",
     "boto3>=1.43.34",
-    "duckdb>=1.5.4",
-    "ipykernel>=7.3.0",
-    "matplotlib>=3.11.0",
     "numpy>=2.4.6",
     "pandas>=3.0.3",
     "polars>=1.41.2",
     "pyarrow>=24.0.0",
     "pyspark>=4.1.2",
     "python-dotenv>=1.2.2",
-    "scikit-learn>=1.9.0",
-    "seaborn>=0.13.2",
 ]
 
 [dependency-groups]
 dev = [
+    "binance-historical-data>=0.1.14",
+    "duckdb>=1.5.4",
+    "ipykernel>=7.3.0",
+    "matplotlib>=3.11.0",
     "pytest>=9.1.1",
     "ruff>=0.15.18",
+    "scikit-learn>=1.9.0",
+    "seaborn>=0.13.2",
 ]

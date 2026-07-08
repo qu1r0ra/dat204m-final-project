@@ -16,6 +16,16 @@ import src.config as config
 logger = logging.getLogger(__name__)
 
 
+def ms_to_str(ms: float) -> str:
+    """Converts epoch milliseconds to formatted UTC timestamp string."""
+    try:
+        return datetime.datetime.fromtimestamp(
+            ms / 1000.0, datetime.timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(ms)
+
+
 def run_profiling() -> None:
     logger.info("Starting dataset profiling...")
 
@@ -66,14 +76,6 @@ def run_profiling() -> None:
     except Exception as e:
         logger.error(f"Failed to profile dataset via DuckDB: {e}")
         return
-
-    def ms_to_str(ms):
-        try:
-            return datetime.datetime.fromtimestamp(
-                ms / 1000.0, datetime.timezone.utc
-            ).strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            return str(ms)
 
     df_profile["start_date"] = df_profile["min_time_ms"].apply(ms_to_str)
     df_profile["end_date"] = df_profile["max_time_ms"].apply(ms_to_str)

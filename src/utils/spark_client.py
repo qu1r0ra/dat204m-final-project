@@ -40,24 +40,6 @@ def get_spark_session() -> SparkSession:
     """Initializes and returns a unified SparkSession based on environment config."""
     logger.info("Initializing Spark session...")
 
-    # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-    java_options = (
-        "--add-opens=java.base/java.lang=ALL-UNNAMED "
-        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
-        "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
-        "--add-opens=java.base/java.io=ALL-UNNAMED "
-        "--add-opens=java.base/java.net=ALL-UNNAMED "
-        "--add-opens=java.base/java.nio=ALL-UNNAMED "
-        "--add-opens=java.base/java.util=ALL-UNNAMED "
-        "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED "
-        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED "
-        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
-        "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED "
-        "--add-opens=java.base/sun.security.action=ALL-UNNAMED "
-        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
-        "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
-    )
-
     builder = (
         SparkSession.builder.appName("BinanceKLinesAnalytics")
         .config("spark.sql.session.timeZone", "UTC")
@@ -107,7 +89,14 @@ def get_spark_session() -> SparkSession:
                 "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
             )
 
-    spark = builder.getOrCreate()
+    try:
+        spark = builder.getOrCreate()
+    except Exception as e:
+        logger.error(
+            f"Failed to initialize Spark session. Verify your local Java runtime, "
+            f"environment variables, and Java versions (11/17/21/26 support): {e}"
+        )
+        raise e
 
     # Adjust log level to reduce noise
     spark.sparkContext.setLogLevel("WARN")

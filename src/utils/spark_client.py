@@ -9,9 +9,7 @@ import logging
 import os
 
 # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-# On Java 26, we patch the java.base module with our custom patch jar to restore jdk.internal.ref.Cleaner.
 java_options = (
-    "--patch-module java.base=spark-java26-patch.jar "
     "--add-opens=java.base/java.lang=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
@@ -30,8 +28,10 @@ java_options = (
 os.environ["JDK_JAVA_OPTIONS"] = java_options
 os.environ["JAVA_TOOL_OPTIONS"] = java_options
 
-from pyspark.sql import SparkSession
+
 import src.config as config
+from pyspark.sql import SparkSession
+
 
 logger = logging.getLogger(__name__)
 

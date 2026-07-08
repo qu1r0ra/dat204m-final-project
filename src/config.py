@@ -20,7 +20,8 @@ SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 
 # Load environment variables from the root .env file
-load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
+
 
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -162,6 +163,15 @@ SPARK_EXECUTION_MODE = get_env_str("SPARK_EXECUTION_MODE", "local")
 SPARK_JARS_PACKAGES = (
     "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
 )
+
+# Optional: configure JAVA_HOME to force a specific Java runtime for Spark
+JAVA_HOME = os.getenv("JAVA_HOME")
+if JAVA_HOME:
+    os.environ["JAVA_HOME"] = JAVA_HOME
+    java_bin = os.path.join(JAVA_HOME, "bin")
+    if java_bin not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = java_bin + os.pathsep + os.environ.get("PATH", "")
+
 
 # ---------------------------------------------------------------------------
 # Dynamic Execution Data Paths

@@ -4,9 +4,7 @@ import os
 import shutil
 
 # JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-# On Java 26, we patch the java.base module with our custom patch jar to restore jdk.internal.ref.Cleaner.
 java_options = (
-    "--patch-module java.base=spark-java26-patch.jar "
     "--add-opens=java.base/java.lang=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED "
     "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED "
@@ -25,8 +23,10 @@ java_options = (
 os.environ["JDK_JAVA_OPTIONS"] = java_options
 os.environ["JAVA_TOOL_OPTIONS"] = java_options
 
-from pyspark.sql import SparkSession
+
 import src.config as config
+from pyspark.sql import SparkSession
+
 from src.pipeline.preprocess_spark import run_profiling
 from src.pipeline.sample_generator_spark import generate_sample
 from src.features.indicators_spark import compute_indicators_spark

@@ -25,8 +25,12 @@ JAVA_OPTIONS = (
     "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
     "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
 )
+import sys
+
 os.environ["JDK_JAVA_OPTIONS"] = JAVA_OPTIONS
 os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
+os.environ["PYSPARK_PYTHON"] = sys.executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 
 import src.config as config  # noqa: E402
@@ -39,6 +43,27 @@ logger = logging.getLogger(__name__)
 def get_spark_session() -> SparkSession:
     """Initializes and returns a unified SparkSession based on environment config."""
     logger.info("Initializing Spark session...")
+
+    if os.name == "nt":
+        from pathlib import Path
+        import shutil
+
+        hadoop_dir = (config.DATA_DIR / "hadoop").resolve()
+        bin_dir = hadoop_dir / "bin"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        winutils_exe = bin_dir / "winutils.exe"
+        if not winutils_exe.exists():
+            attrib_exe = (
+                Path(os.environ.get("SystemRoot", "C:\\Windows"))
+                / "System32"
+                / "attrib.exe"
+            )
+            if attrib_exe.exists():
+                try:
+                    shutil.copy(str(attrib_exe), str(winutils_exe))
+                except Exception:
+                    pass
+        os.environ["HADOOP_HOME"] = str(hadoop_dir)
 
     builder = (
         SparkSession.builder.appName("BinanceKLinesAnalytics")

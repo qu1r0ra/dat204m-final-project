@@ -2,7 +2,7 @@
 
 <!-- Refer to <https://shields.io/badges> for usage -->
 
-![Term Course](https://img.shields.io/badge/AY2526--T3-DAT204M-blue) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white) ![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white) ![duckdb](https://img.shields.io/badge/DuckDB-FFF000?logo=duckdb&logoColor=black) ![polars](https://img.shields.io/badge/Polars-CD7F32?logo=polars&logoColor=white)
+![Term Course](https://img.shields.io/badge/AY2526--T3-DAT204M-blue) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white) ![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white) ![duckdb](https://img.shields.io/badge/DuckDB-FFF000?logo=duckdb&logoColor=black) ![polars](https://img.shields.io/badge/Polars-CD7F32?logo=polars&logoColor=white) ![pyspark](https://img.shields.io/badge/PySpark-E25A28?logo=apachespark&logoColor=white)
 
 An end-to-end data pipeline and machine learning pipeline for descriptive and predictive analytics on historical Binance Spot 1-Minute K-Lines (~75+ GB raw CSVs, ~611 million rows, 558 trading pairs).
 
@@ -28,8 +28,8 @@ This project processes and analyzes Binance Spot 1-Minute K-line data to solve a
 
 The project is structured in two main phases:
 
-1. **Phase 1 (Descriptive Analytics):** Downloading, deduplicating, and profiling the massive raw dataset (~75+ GB CSVs) using DuckDB, generating a local downsampled Parquet dataset (~1.5-2 GB) of the top 20 most liquid cryptocurrency pairs, and conducting exploratory data analysis.
-2. **Phase 2 (Predictive Analytics):** Extracting rolling technical indicators using Polars, training classification models, evaluating their performance against a baseline, and performing error analysis.
+1. **Phase 1 (Descriptive Analytics):** Downloading, deduplicating, and profiling the massive raw dataset (~75+ GB CSVs) using DuckDB (or PySpark), generating a local downsampled Parquet dataset (~1.5-2 GB) of the top 20 most liquid cryptocurrency pairs, and conducting exploratory data analysis.
+2. **Phase 2 (Predictive Analytics):** Extracting rolling technical indicators using Polars (or PySpark), training classification models, evaluating their performance against a baseline, and performing error analysis.
 
 ## 2. Project Structure
 
@@ -48,7 +48,8 @@ A high-level overview of the repository organization:
 ├── docs/                     # Written deliverables, reports, and documentation
 │   ├── specs.md              # Project specifications
 │   ├── team_roles.md         # Team roles and task dissemination
-│   └── data_profile.md       # Auto-generated dataset profiling report
+│   ├── data_profile.md       # Auto-generated dataset profiling report (DuckDB)
+│   └── data_profile_spark.md # Auto-generated dataset profiling report (Spark)
 ├── notebooks/                # Jupyter Notebooks for deliverables
 │   ├── 01_eda_descriptive_analytics.ipynb         # Phase 1: Descriptive profiling & visualizations
 │   ├── 02_ml_feature_engineering_training.ipynb   # Phase 2: Signal features & model training
@@ -57,18 +58,26 @@ A high-level overview of the repository organization:
 │   ├── __init__.py
 │   ├── config.py             # Configuration parameters and environment variables loader
 │   ├── features/             # Feature engineering and signal generation
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   ├── indicators.py     # Rolling Polars indicators
+│   │   └── indicators_spark.py # UDF-based Spark feature indicators
 │   ├── models/               # Model definitions, training, and evaluation pipelines
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   ├── train.py          # Scikit-learn training pipeline
+│   │   └── train_spark.py    # PySpark MLlib training pipeline
 │   ├── pipeline/             # Data preprocessing and ingestion pipelines
 │   │   ├── __init__.py
 │   │   ├── download_klines.py # Ingestion script for historical data
-│   │   ├── preprocess.py      # Profiling and data cleaning script
-│   │   └── sample_generator.py # Downsampling Parquet generator
+│   │   ├── preprocess.py      # Profiling and data cleaning script (DuckDB)
+│   │   ├── preprocess_spark.py # Profiling and data cleaning script (Spark)
+│   │   ├── sample_generator.py # Downsampling Parquet generator (DuckDB)
+│   │   └── sample_generator_spark.py # Downsampling Parquet generator (Spark)
 │   └── utils/                # General utility modules
-│       └── __init__.py
+│       ├── __init__.py
+│       └── spark_client.py   # Unified Spark Session configuration
 ├── tests/                    # pytest suite for validation
-│   └── test_pipelines.py     # Automated tests for ingestion and processing
+│   ├── test_pipelines.py     # Automated tests for ingestion and processing
+│   └── test_spark_pipelines.py # Spark-specific test suite
 ├── AGENTS.md                 # Agent entrypoint and rules index
 └── HANDOFF.md                # Workspace living handoff
 ```
@@ -82,6 +91,7 @@ Ensure you have the following installed on your local machine:
 1. **Git:** Used to clone the repository.
 2. **Python >=3.11**
 3. **uv:** Fast Python package installer and project manager. Installation details: [Astral uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/).
+4. **Java JDK 21:** Required to run PySpark locally.
 
 ### 3.2. Configuration Setup
 
@@ -120,26 +130,50 @@ uv run python -m src.pipeline.download_klines
 
 ### 4.2. Running Profiling
 
-Profile the downloaded raw CSV datasets, checking for gaps, nulls, and duplicate timestamps. This generates the report file [docs/data_profile.md](docs/data_profile.md):
+Profile the downloaded raw CSV datasets, checking for gaps, nulls, and duplicate timestamps.
+
+**DuckDB version** (generates [docs/data_profile.md](docs/data_profile.md)):
 
 ```bash
 uv run python -m src.pipeline.preprocess
+```
+
+**PySpark version** (generates [docs/data_profile_spark.md](docs/data_profile_spark.md)):
+
+```bash
+uv run python -m src.pipeline.preprocess_spark
 ```
 
 ### 4.3. Generating Downsampled Parquet
 
 Slice out data for the top 20 most liquid trading pairs and export a compressed Parquet sample to `data/sample/binance_sample.parquet`:
 
+**DuckDB version**:
+
 ```bash
 uv run python -m src.pipeline.sample_generator
+```
+
+**PySpark version**:
+
+```bash
+uv run python -m src.pipeline.sample_generator_spark
 ```
 
 ### 4.4. Running Tests
 
 Verify pipeline logic and correctness against mock data structures:
 
+**Standard pipeline tests**:
+
 ```bash
-uv run pytest
+uv run pytest tests/test_pipelines.py
+```
+
+**Spark pipeline tests**:
+
+```bash
+uv run pytest tests/test_spark_pipelines.py
 ```
 
 ## 5. Reproducing Analytical Results

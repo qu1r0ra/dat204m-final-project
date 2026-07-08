@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                   |
-| ---------------------- | ----------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-03                                                              |
-| **Last session focus** | Raw Dataset S3 Verification & Glue Catalog Validation                   |
-| **Active tasks**       | None (All Phase 1 pipeline, indexing, and verification tasks completed) |
-| **Blockers**           | None                                                                    |
+| Field                  | Value                                                            |
+| ---------------------- | ---------------------------------------------------------------- |
+| **Last updated**       | 2026-07-08                                                       |
+| **Last session focus** | PySpark JVM Configuration & Java 26 Patch Cleanup                |
+| **Active tasks**       | Verify Spark test execution and generate Spark profiling reports |
+| **Blockers**           | None                                                             |
 
 ---
 
@@ -35,15 +35,13 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ## 3. Locked Architectural Decisions
 
-| Topic                 | Decision                                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Thesis Context**    | Canonical rules defined under `.cursor/rules/`.                                                                 |
-| **Data Directory**    | All data (raw CSV files and Parquet files) must reside in the git-ignored `data/` directory.                    |
-| **AWS Hub-and-Spoke** | Central Hub account hosts `s3://dat204m-binance-bigdata-hub-sg/` with spoke accounts granted read-only access.  |
-| **Teammate Access**   | Buckets configured with bucket policies allowing teammate IDs `481088927299` and `989211373646` access.         |
-| **Upload Pipeline**   | Parallelized python-boto3 multi-threaded uploader is used for raw CSV datasets to bypass missing local AWS CLI. |
-| **Testing**           | Standard pytest checks run against mock CSV arrays in `tests/test_pipelines.py`.                                |
-| **PySpark Engine**    | Parallelised profiling, UDF-based feature engineering, and MLlib training for scaling up to 75+ GB raw data.    |
+Architectural decisions are managed canonically in `.cursor/rules/` and project registries.
+
+- **Project Overview**: See [project-overview.mdc](.cursor/rules/project-overview.mdc).
+- **Data & Directory Structure**: All raw and output data must reside in `data/` (git-ignored). See [data-organization.mdc](.cursor/rules/data-organization.mdc) and [data_registry.md](.cursor/project/data_registry.md).
+- **AWS Hub-and-Spoke & Security**: Encryption and teammate access policies are defined in [data-organization.mdc](.cursor/rules/data-organization.mdc).
+- **Tech Stack & Computations**: PySpark, DuckDB, Polars, and configuration guidelines are defined in [tech-stack.mdc](.cursor/rules/tech-stack.mdc).
+- **Workflow & Rules**: Review [agent-workflows.mdc](.cursor/rules/agent-workflows.mdc) and [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -79,12 +77,8 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ## 5. Implementation Queue
 
-| P   | Task                                                              | Component  | Status   |
-| --- | ----------------------------------------------------------------- | ---------- | -------- |
-| 1   | Complete raw dataset upload to central S3 bucket                  | Data       | Complete |
-| 2   | Reorganize agent context files and rules under `.cursor/rules/`   | Agent Docs | Complete |
-| 3   | Execute Glue Crawler (`binance_raw_crawler`) to index raw dataset | AWS        | Complete |
-| 4   | Run descriptive analysis & profile reports                        | Notebook 1 | Complete |
-| 5   | Train machine learning classifiers on local sample data           | Notebook 2 | Complete |
-| 6   | Conduct evaluation and error analysis                             | Notebook 3 | Complete |
-| 7   | Implement distributed PySpark profiling, UDF features & MLlib     | Spark ML   | Complete |
+| P   | Task                                                               | Component | Status      |
+| --- | ------------------------------------------------------------------ | --------- | ----------- |
+| 8   | Verify local Java 21 execution for Spark and generate data profile | Spark ML  | In Progress |
+
+_For archived tasks (1-7), see [session_history.md](docs/session_history.md)._

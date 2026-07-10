@@ -71,11 +71,16 @@ A high-level overview of the repository organization:
 │   │   ├── preprocess.py      # Profiling and data cleaning script (DuckDB)
 │   │   ├── preprocess_spark.py # Profiling and data cleaning script (Spark)
 │   │   ├── sample_generator.py # Downsampling Parquet generator (DuckDB)
-│   │   └── sample_generator_spark.py # Downsampling Parquet generator (Spark)
+│   │   ├── sample_generator_spark.py # Downsampling Parquet generator (Spark)
+│   │   └── schemas.py         # Shared PySpark schemas
 │   └── utils/                # General utility modules
 │       ├── __init__.py
+│       ├── aws_client.py     # General AWS client helpers
+│       ├── helpers.py        # Shared utility helper methods
 │       └── spark_client.py   # Unified Spark Session configuration
 ├── tests/                    # pytest suite for validation
+│   ├── __init__.py
+│   ├── conftest.py           # Shared test fixtures and configuration
 │   ├── test_pipelines.py     # Automated tests for ingestion and processing
 │   └── test_spark_pipelines.py # Spark-specific test suite
 ├── AGENTS.md                 # Agent entrypoint and rules index

@@ -83,6 +83,4 @@ def compute_indicators_spark(spark_df: DataFrame) -> DataFrame:
         return pdf_out[cols_order]
 
     # Group by symbol and execute the Pandas Grouped Map UDF in parallel
-    return spark_df.groupBy("symbol").applyInPandas(
-        pandas_udf_wrapper, schema=INDICATOR_SCHEMA
-    )
+    return spark_df.groupBy("symbol").applyInPandas(pandas_udf_wrapper, schema=INDICATOR_SCHEMA)

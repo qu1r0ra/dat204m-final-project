@@ -55,9 +55,7 @@ def ensure_hadoop_home() -> None:
         winutils_exe = bin_dir / "winutils.exe"
         if not winutils_exe.exists():
             attrib_exe = (
-                Path(os.environ.get("SYSTEMROOT", "C:\\Windows"))
-                / "System32"
-                / "attrib.exe"
+                Path(os.environ.get("SYSTEMROOT", "C:\\Windows")) / "System32" / "attrib.exe"
             )
             if attrib_exe.exists():
                 try:
@@ -100,16 +98,12 @@ def get_spark_session() -> SparkSession:
         logger.info("Configuring Spark S3A credentials...")
         builder = (
             builder.config("spark.jars.packages", config.SPARK_JARS_PACKAGES)
-            .config(
-                "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
-            )
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             .config("spark.hadoop.fs.s3a.access.key", config.AWS_ACCESS_KEY_ID)
             .config("spark.hadoop.fs.s3a.secret.key", config.AWS_SECRET_ACCESS_KEY)
         )
 
-        if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith(
-            "your_"
-        ):
+        if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith("your_"):
             builder = builder.config(
                 "spark.hadoop.fs.s3a.session.token", config.AWS_SESSION_TOKEN
             ).config(

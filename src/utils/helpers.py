@@ -5,6 +5,7 @@ Provides common timestamp conversions and markdown report formatting tools.
 """
 
 import datetime
+from pathlib import Path
 
 import pandas as pd
 
@@ -15,13 +16,11 @@ def ms_to_str(ms: int) -> str:
         return datetime.datetime.fromtimestamp(ms / 1000.0, datetime.UTC).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
-    except Exception:
+    except (ValueError, OSError, OverflowError):
         return str(ms)
 
 
-def generate_profile_markdown(
-    df_profile: pd.DataFrame, title: str, description: str
-) -> str:
+def generate_profile_markdown(df_profile: pd.DataFrame, title: str, description: str) -> str:
     """Calculates missing intervals and formats aggregation statistics into a markdown report.
 
     Assumes input DataFrame contains columns: symbol, row_count, min_time_ms,
@@ -60,13 +59,33 @@ def generate_profile_markdown(
         "",
         "## Detailed Symbol Analysis",
         "",
-        "| Symbol | Total Rows | Expected Rows | Gaps (Rows) | Gap % | Start Date (UTC) | End Date (UTC) | Duplicates | Nulls |",
+        "| Symbol | Total Rows | Expected Rows | Gaps (Rows) | Gap % | "
+        "Start Date (UTC) | End Date (UTC) | Duplicates | Nulls |",
         "| :--- | :---: | :---: | :---: | :---: | :--- | :--- | :---: | :---: |",
     ]
 
     report_lines.extend(
-        f"| {row.symbol} | {row.row_count:,} | {row.expected_rows:,} | {row.missing_rows:,} | {row.gap_percentage}% | {row.start_date} | {row.end_date} | {row.duplicate_timestamps} | {row.null_values_count} |"
+        f"| {row.symbol} | {row.row_count:,} | {row.expected_rows:,} | {row.missing_rows:,} | "
+        f"{row.gap_percentage}% | {row.start_date} | {row.end_date} | "
+        f"{row.duplicate_timestamps} | {row.null_values_count} |"
         for row in df_profile.itertuples(index=False)
     )
 
     return "\n".join(report_lines) + "\n"
+
+
+def discover_symbol_csvs(symbols: list[str], base_dir: "Path") -> list["Path"]:
+    """Discovers 1m kline CSV files for a specific list of symbols."""
+    valid_paths = []
+    for symbol in symbols:
+        symbol_dir = base_dir / "spot" / "monthly" / "klines" / symbol / "1m"
+        if symbol_dir.exists():
+            csv_files = list(symbol_dir.glob("*.csv"))
+            if csv_files:
+                valid_paths.extend(csv_files)
+    return valid_paths
+
+
+def discover_all_csvs(base_dir: "Path") -> list["Path"]:
+    """Discovers all 1m kline CSV files across all symbols."""
+    return list((base_dir / "spot" / "monthly" / "klines").glob("*/1m/*.csv"))

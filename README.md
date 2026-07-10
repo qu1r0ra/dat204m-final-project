@@ -172,7 +172,7 @@ Verify pipeline logic and correctness against mock data structures:
 **Standard pipeline tests**:
 
 ```bash
-uv run pytest tests/test_pipelines.py
+uv run pytest -m "not spark"
 ```
 
 **Spark pipeline tests**:

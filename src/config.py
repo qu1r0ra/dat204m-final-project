@@ -59,7 +59,8 @@ def get_env_int(key: str, default: int) -> int:
         return int(val)
     except ValueError:
         logger.warning(
-            f"Environment variable '{key}' has invalid integer value '{val}'. Using default fallback: {default}"
+            f"Environment variable '{key}' has invalid integer value '{val}'. "
+            f"Using default fallback: {default}"
         )
         return default
 
@@ -75,7 +76,8 @@ def get_env_float(key: str, default: float) -> float:
         return float(val)
     except ValueError:
         logger.warning(
-            f"Environment variable '{key}' has invalid float value '{val}'. Using default fallback: {default}"
+            f"Environment variable '{key}' has invalid float value '{val}'. "
+            f"Using default fallback: {default}"
         )
         return default
 
@@ -138,9 +140,7 @@ EXCLUDED_SUFFIXES = ("UP", "DOWN")  # Leveraged tokens
 # ---------------------------------------------------------------------------
 TARGET_SYMBOL = get_env_str("TARGET_SYMBOL", "BTCUSDT")
 FUTURE_HORIZON = get_env_int("FUTURE_HORIZON", 15)  # N minutes ahead
-TARGET_THRESHOLD = get_env_float(
-    "TARGET_THRESHOLD", 0.0
-)  # Return threshold for UP direction
+TARGET_THRESHOLD = get_env_float("TARGET_THRESHOLD", 0.0)  # Return threshold for UP direction
 TRAIN_SPLIT_DATE = get_env_str("TRAIN_SPLIT_DATE", "2024-01-01")
 
 # ---------------------------------------------------------------------------
@@ -184,9 +184,7 @@ def configure_java_home() -> None:
 # Dynamically resolves the active data path based on execution mode
 if EXECUTION_MODE == "aws_hub":
     # In S3 hub execution, load directly from S3 sample prefix
-    ACTIVE_DATA_PATH = (
-        f"s3://{AWS_S3_BUCKET_NAME}/{AWS_S3_SAMPLE_PREFIX}binance_sample.parquet"
-    )
+    ACTIVE_DATA_PATH = f"s3://{AWS_S3_BUCKET_NAME}/{AWS_S3_SAMPLE_PREFIX}binance_sample.parquet"
 elif EXECUTION_MODE == "local_raw":
     ACTIVE_DATA_PATH = str(RAW_KLINES_DIR)
 else:

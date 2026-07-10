@@ -18,9 +18,7 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
     required_cols = {"symbol", "open_time", "open", "high", "low", "close", "volume"}
     missing = required_cols - set(df.columns)
     if missing:
-        raise ValueError(
-            f"Input Polars DataFrame is missing required columns: {missing}"
-        )
+        raise ValueError(f"Input Polars DataFrame is missing required columns: {missing}")
 
     # Ensure dataset is chronologically sorted by symbol and timestamp
     df = df.sort(["symbol", "open_time"])
@@ -30,28 +28,17 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
         [
             pl.col("close").rolling_mean(window_size=15).over("symbol").alias("sma_15"),
             pl.col("close").rolling_mean(window_size=50).over("symbol").alias("sma_50"),
-            pl.col("close")
-            .ewm_mean(span=15, adjust=False)
-            .over("symbol")
-            .alias("ema_15"),
-            pl.col("close")
-            .ewm_mean(span=50, adjust=False)
-            .over("symbol")
-            .alias("ema_50"),
+            pl.col("close").ewm_mean(span=15, adjust=False).over("symbol").alias("ema_15"),
+            pl.col("close").ewm_mean(span=50, adjust=False).over("symbol").alias("ema_50"),
             # Log return calculation
-            (pl.col("close") / pl.col("close").shift(1).over("symbol"))
-            .log()
-            .alias("log_return"),
+            (pl.col("close") / pl.col("close").shift(1).over("symbol")).log().alias("log_return"),
             # MACD Base components
             (
                 pl.col("close").ewm_mean(span=12, adjust=False).over("symbol")
                 - pl.col("close").ewm_mean(span=26, adjust=False).over("symbol")
             ).alias("macd_line"),
             # Bollinger middle band & std deviation
-            pl.col("close")
-            .rolling_mean(window_size=20)
-            .over("symbol")
-            .alias("bb_middle"),
+            pl.col("close").rolling_mean(window_size=20).over("symbol").alias("bb_middle"),
             pl.col("close").rolling_std(window_size=20).over("symbol").alias("bb_std"),
         ]
     )
@@ -73,18 +60,12 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
     df_step2 = df_step1.with_columns(
         [
             # MACD Signal and Histogram
-            pl.col("macd_line")
-            .ewm_mean(span=9, adjust=False)
-            .over("symbol")
-            .alias("macd_signal"),
+            pl.col("macd_line").ewm_mean(span=9, adjust=False).over("symbol").alias("macd_signal"),
             # Bollinger Bands
             (pl.col("bb_middle") + 2 * pl.col("bb_std")).alias("bb_upper"),
             (pl.col("bb_middle") - 2 * pl.col("bb_std")).alias("bb_lower"),
             # Volatility (Rolling std of log return over 30 periods)
-            pl.col("log_return")
-            .rolling_std(window_size=30)
-            .over("symbol")
-            .alias("volatility_30"),
+            pl.col("log_return").rolling_std(window_size=30).over("symbol").alias("volatility_30"),
             # RSI
             rsi.alias("rsi_14"),
         ]
@@ -116,24 +97,14 @@ def compute_stationary_features(df: pl.DataFrame) -> pl.DataFrame:
     }
     missing = required_cols - set(df.columns)
     if missing:
-        raise ValueError(
-            f"Input Polars DataFrame is missing required indicator columns: {missing}"
-        )
+        raise ValueError(f"Input Polars DataFrame is missing required indicator columns: {missing}")
 
     return df.with_columns(
         [
-            ((pl.col("close") - pl.col("sma_15")) / pl.col("close")).alias(
-                "close_to_sma_15"
-            ),
-            ((pl.col("close") - pl.col("sma_50")) / pl.col("close")).alias(
-                "close_to_sma_50"
-            ),
-            ((pl.col("close") - pl.col("ema_15")) / pl.col("close")).alias(
-                "close_to_ema_15"
-            ),
-            ((pl.col("close") - pl.col("ema_50")) / pl.col("close")).alias(
-                "close_to_ema_50"
-            ),
+            ((pl.col("close") - pl.col("sma_15")) / pl.col("close")).alias("close_to_sma_15"),
+            ((pl.col("close") - pl.col("sma_50")) / pl.col("close")).alias("close_to_sma_50"),
+            ((pl.col("close") - pl.col("ema_15")) / pl.col("close")).alias("close_to_ema_15"),
+            ((pl.col("close") - pl.col("ema_50")) / pl.col("close")).alias("close_to_ema_50"),
             (
                 (pl.col("close") - pl.col("bb_lower"))
                 / (pl.col("bb_upper") - pl.col("bb_lower") + 1e-10)

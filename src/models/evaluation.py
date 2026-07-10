@@ -20,7 +20,7 @@ from sklearn.metrics import (
 
 
 def calculate_metrics(
-    y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray = None
+    y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray | None = None
 ) -> dict:
     """Calculates standard classification metrics."""
     metrics = {

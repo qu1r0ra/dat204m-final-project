@@ -2,13 +2,6 @@ import os
 from pathlib import Path
 
 import pytest
-
-# JVM options required on Java 11+ to allow Spark to access jdk.internal packages
-from src.utils.spark_client import JAVA_OPTIONS
-
-pytestmark = [pytest.mark.slow, pytest.mark.spark]
-
-
 from pyspark.sql import SparkSession
 
 import src.config as config
@@ -20,6 +13,11 @@ from src.models.train_spark import (
 )
 from src.pipeline.preprocess_spark import run_profiling
 from src.pipeline.sample_generator_spark import generate_sample
+
+# JVM options required on Java 11+ to allow Spark to access jdk.internal packages
+from src.utils.spark_client import JAVA_OPTIONS
+
+pytestmark = [pytest.mark.slow, pytest.mark.spark]
 
 
 @pytest.fixture(scope="module")
@@ -62,9 +60,7 @@ def spark_session():
             files = list(p.glob("*.parquet"))
             if not files:
                 raise FileNotFoundError(f"No parquet files in {p_str}")
-            df_pandas = pd.concat(
-                [pd.read_parquet(f) for f in files], ignore_index=True
-            )
+            df_pandas = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
         else:
             df_pandas = pd.read_parquet(p_str)
         from pyspark.sql import SparkSession
@@ -113,7 +109,8 @@ def mock_spark_env(tmp_path, monkeypatch):
             t = base_time + i * 60000
             price = 42000.0 + i * 10.0
             f.write(
-                f"{t},{price},{price + 5},{price - 5},{price},10.0,{t + 59999},420000.0,100,5.0,210000.0,0\n"
+                f"{t},{price},{price + 5},{price - 5},{price},10.0,"
+                f"{t + 59999},420000.0,100,5.0,210000.0,0\n"
             )
 
     eth_csv = eth_dir / "ETHUSDT-1m-2024-01.csv"
@@ -123,7 +120,8 @@ def mock_spark_env(tmp_path, monkeypatch):
             t = base_time + i * 60000
             price = 2200.0 + i * 2.0
             f.write(
-                f"{t},{price},{price + 1},{price - 1},{price},50.0,{t + 59999},110000.0,80,25.0,55000.0,0\n"
+                f"{t},{price},{price + 1},{price - 1},{price},50.0,"
+                f"{t + 59999},110000.0,80,25.0,55000.0,0\n"
             )
 
     return {
@@ -155,9 +153,7 @@ def test_spark_sample_generator(mock_spark_env, spark_session, monkeypatch):
     # Monkeypatch Spark session getter in sample generator
     from src.pipeline import sample_generator_spark
 
-    monkeypatch.setattr(
-        sample_generator_spark, "get_spark_session", lambda: spark_session
-    )
+    monkeypatch.setattr(sample_generator_spark, "get_spark_session", lambda: spark_session)
 
     generate_sample()
 
@@ -169,15 +165,13 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     # Monkeypatch Spark session getter in sample generator
     from src.pipeline import sample_generator_spark
 
-    monkeypatch.setattr(
-        sample_generator_spark, "get_spark_session", lambda: spark_session
-    )
+    monkeypatch.setattr(sample_generator_spark, "get_spark_session", lambda: spark_session)
 
     # 1. Run sample generator to produce the test parquet file
     generate_sample()
-    parquet_path_str = str(
-        mock_spark_env["sample_dir"] / "binance_sample_spark.parquet"
-    ).replace("\\", "/")
+    parquet_path_str = str(mock_spark_env["sample_dir"] / "binance_sample_spark.parquet").replace(
+        "\\", "/"
+    )
 
     # 2. Read back using Spark
     df = spark_session.read.parquet(parquet_path_str)
@@ -197,7 +191,8 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     total_labeled = df_labeled.count()
     assert total_labeled > 0
 
-    # 5. Split chronologically using dynamically calculated timestamp bounds to bypass local timezone offsets
+    # 5. Split chronologically using dynamically calculated timestamp bounds
+    # to bypass local timezone offsets
     import datetime
 
     from pyspark.sql import functions as F
@@ -229,7 +224,7 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
 
     feature_cols = DEFAULT_FEATURE_COLS
 
-    trained_dict = train_pipeline_spark(train_df, val_df, feature_cols)
-    assert "logistic_regression" in trained_dict
-    assert "random_forest" in trained_dict
-    assert "metrics" in trained_dict
+    trained_artifacts = train_pipeline_spark(train_df, val_df, feature_cols)
+    assert trained_artifacts.logistic_regression is not None
+    assert trained_artifacts.random_forest is not None
+    assert trained_artifacts.metrics is not None

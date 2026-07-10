@@ -36,9 +36,7 @@ def get_boto3_session() -> boto3.Session:
     session_kwargs = {}
     if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"):
         session_kwargs["aws_access_key_id"] = config.AWS_ACCESS_KEY_ID
-    if config.AWS_SECRET_ACCESS_KEY and not config.AWS_SECRET_ACCESS_KEY.startswith(
-        "your_"
-    ):
+    if config.AWS_SECRET_ACCESS_KEY and not config.AWS_SECRET_ACCESS_KEY.startswith("your_"):
         session_kwargs["aws_secret_access_key"] = config.AWS_SECRET_ACCESS_KEY
     if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith("your_"):
         session_kwargs["aws_session_token"] = config.AWS_SESSION_TOKEN
@@ -120,7 +118,8 @@ def upload_sample_parquet() -> None:
 
     if not local_path.exists():
         raise AWSError(
-            f"Local sample Parquet file not found at: {local_path}. Please run sample_generator first."
+            f"Local sample Parquet file not found at: {local_path}. "
+            "Please run sample_generator first."
         )
 
     s3_key = f"{config.AWS_S3_SAMPLE_PREFIX}{local_path.name}"
@@ -136,16 +135,12 @@ def upload_sample_parquet() -> None:
             Key=s3_key,
             ExtraArgs={"ServerSideEncryption": "AES256"},
         )
-        logger.info(
-            f"Successfully uploaded dataset to: s3://{config.AWS_S3_BUCKET_NAME}/{s3_key}"
-        )
-    except Exception as e:
+        logger.info(f"Successfully uploaded dataset to: s3://{config.AWS_S3_BUCKET_NAME}/{s3_key}")
+    except (botocore.exceptions.ClientError, botocore.exceptions.BotoCoreError) as e:
         raise AWSError(f"Failed to upload sample Parquet to S3: {e}") from e
 
 
-def run_glue_crawler(
-    timeout_seconds: int = 600, poll_interval_seconds: int = 15
-) -> None:
+def run_glue_crawler(timeout_seconds: int = 600, poll_interval_seconds: int = 15) -> None:
     """Triggers the Glue Crawler and monitors its execution state until completion."""
     session = get_boto3_session()
     glue = session.client("glue")
@@ -174,24 +169,18 @@ def run_glue_crawler(
             if state == "READY":
                 last_run = status_res["Crawler"].get("LastCrawl", {})
                 run_status = last_run.get("Status")
-                logger.info(
-                    f"Crawler execution completed. Final Crawl Status: {run_status}"
-                )
+                logger.info(f"Crawler execution completed. Final Crawl Status: {run_status}")
                 if run_status == "FAILED":
                     raise AWSError("Glue Crawler execution failed.")
                 break
-        except Exception as e:
-            if isinstance(e, AWSError):
-                raise e
+        except (botocore.exceptions.ClientError, botocore.exceptions.BotoCoreError) as e:
             raise AWSError(f"Failed to check crawler state: {e}") from e
         time.sleep(poll_interval_seconds)
 
 
 def main() -> None:
     """Main CLI entry point for the AWS Client utility."""
-    parser = argparse.ArgumentParser(
-        description="DAT204M AWS Hub deployment and data upload tool."
-    )
+    parser = argparse.ArgumentParser(description="DAT204M AWS Hub deployment and data upload tool.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Subcommand: deploy-stack
@@ -208,9 +197,7 @@ def main() -> None:
     subparsers.add_parser("upload-sample", help="Upload the sample Parquet file to S3.")
 
     # Subcommand: run-crawler
-    subparsers.add_parser(
-        "run-crawler", help="Start the Glue Crawler to catalog the S3 data."
-    )
+    subparsers.add_parser("run-crawler", help="Start the Glue Crawler to catalog the S3 data.")
 
     # Subcommand: deploy-all
     all_parser = subparsers.add_parser(
@@ -226,9 +213,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Configure root logging inside the main guard to prevent side effects on import
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     try:
         if args.command == "deploy-stack":

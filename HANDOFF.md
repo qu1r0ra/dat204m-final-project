@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                           |
-| ---------------------- | ----------------------------------------------- |
-| **Last updated**       | 2026-07-10                                      |
-| **Last session focus** | Codebase-wide Refactoring & Quality Improvement |
-| **Active tasks**       | None                                            |
-| **Blockers**           | None                                            |
+| Field                  | Value                                             |
+| ---------------------- | ------------------------------------------------- |
+| **Last updated**       | 2026-07-10                                        |
+| **Last session focus** | Codebase-wide Refactoring & Comprehensive Testing |
+| **Active tasks**       | None                                              |
+| **Blockers**           | None                                              |
 
 ---
 
@@ -76,8 +76,9 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
   - **Environment Hygiene**: Moved `os.environ` mutations in `spark_client.py` and `config.py` to run lazily inside a setup function rather than unconditionally at import time, preventing notebook pollution.
   - **Error Reliability**: Re-raised exceptions in pipeline functions and updated `__main__` guards in all four pipelines to exit with code 1 upon failure.
   - **Deduplication**: Extracted a shared raw data schema (`RAW_KLINE_CSV_SCHEMA` in `schemas.py`), shared Hadoop `winutils` provisioning logic, and a central list of default model feature columns.
-  - **Validation & Typing**: Added input column validations to Polars features, missing return type annotations, resolved implicit optionals, and vectorized Markdown table generation in `helpers.py`.
-  - **Cleanup & Linting**: Deleted dead code (`smoke_test.py`), restructured test configuration using `__init__.py` and `conftest.py`, and added a strict `ruff` config in `pyproject.toml`.
+  - **Validation & Typing**: Added input column validations to Polars features, dataclasses for ML outputs (`ModelArtifacts`, `SparkModelArtifacts`), missing return type annotations, resolved implicit optionals, and vectorized Markdown table generation in `helpers.py`.
+  - **Cleanup & Linting**: Deleted dead code (`smoke_test.py`), restructured test configuration using `__init__.py` and `conftest.py`, added a strict `ruff` config in `pyproject.toml`, and fully formatted and linted the codebase to satisfy all rules.
+  - **Testing**: Added `tests/test_features.py` and `tests/test_models.py` with shared fixtures to cover technical indicators, stationary features, metrics calculation, and chronological data splitting.
 - **Spark Client Windows Compatibility**: Integrated dynamic `HADOOP_HOME` configuration and local `winutils.exe` provisioning directly inside [spark_client.py](src/utils/spark_client.py). Configured `PYSPARK_PYTHON` and `PYSPARK_DRIVER_PYTHON` environment variables to point directly to `sys.executable`, eliminating Python worker connection timeouts and runtime environment mismatch errors on Windows systems.
 - **Notebook Migration**: Upgraded Phase 1 EDA notebook [01_eda_descriptive_analytics.ipynb](notebooks/01_eda_descriptive_analytics.ipynb) to utilize the distributed PySpark pipeline for data loading, descriptive analytics, parallel feature engineering, and binary price direction labeling. Converted Spark DataFrames back to Polars DataFrames locally to preserve contract compatibility with downstream visualization cells.
 

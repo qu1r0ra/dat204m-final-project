@@ -5,18 +5,26 @@ Implements chronological validation splitting, feature extraction, scaling,
 and fitting of classifiers (Logistic Regression and Random Forest).
 """
 
-import pickle
-from pathlib import Path
-import polars as pl
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-
-# Setup logging
 import logging
+import pickle
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+import polars as pl
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ModelArtifacts:
+    scaler: StandardScaler
+    logistic_regression: LogisticRegression
+    random_forest: RandomForestClassifier
+    feature_names: list[str]
 
 
 def split_data_chronologically(
@@ -72,7 +80,7 @@ def train_pipeline(
     X_val: np.ndarray,
     y_val: np.ndarray,
     feature_cols: list[str],
-) -> dict:
+) -> ModelArtifacts:
     """Trains a Logistic Regression and a Random Forest Classifier on scaled features.
 
     Returns a dictionary containing the trained models, scaler, and logs.
@@ -98,15 +106,15 @@ def train_pipeline(
     rf_val_acc = rf.score(X_val_scaled, y_val)
     logger.info(f"Random Forest Validation Accuracy: {rf_val_acc:.4f}")
 
-    return {
-        "scaler": scaler,
-        "logistic_regression": lr,
-        "random_forest": rf,
-        "feature_names": feature_cols,
-    }
+    return ModelArtifacts(
+        scaler=scaler,
+        logistic_regression=lr,
+        random_forest=rf,
+        feature_names=feature_cols,
+    )
 
 
-def save_model_artifacts(artifacts: dict, dest_dir: Path) -> None:
+def save_model_artifacts(artifacts: ModelArtifacts, dest_dir: Path) -> None:
     """Saves model and scaler binaries as pickle files."""
     dest_dir.mkdir(parents=True, exist_ok=True)
 

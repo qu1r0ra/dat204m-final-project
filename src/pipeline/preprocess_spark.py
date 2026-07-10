@@ -9,11 +9,13 @@ to docs/data_profile_spark.md.
 import logging
 
 from pyspark.sql import functions as F
-from pyspark.sql.types import LongType
 
 import src.config as config
-from src.pipeline.schemas import RAW_KLINE_CSV_SCHEMA
-from src.utils.helpers import generate_profile_markdown
+from src.pipeline.schemas import (
+    RAW_KLINE_CSV_SCHEMA,
+    get_spark_timestamp_ms_col,
+)
+from src.utils.helpers import discover_all_csvs, generate_profile_markdown
 from src.utils.spark_client import get_spark_session
 
 logger = logging.getLogger(__name__)
@@ -23,15 +25,15 @@ def run_profiling() -> None:
     logger.info("Starting Spark-based dataset profiling...")
 
     # Check if any files exist before launching Spark
-    base_dir = config.RAW_KLINES_DIR / "spot" / "monthly" / "klines"
-    if not base_dir.exists():
+    base_dir = config.RAW_KLINES_DIR
+    if not (base_dir / "spot" / "monthly" / "klines").exists():
         logger.error(f"Raw data directory does not exist: {base_dir}")
         logger.error(
             "Please run the downloader script first or place datasets under data/raw/binance_data/."
         )
         return
 
-    csv_files = list(base_dir.glob("*/1m/*.csv"))
+    csv_files = discover_all_csvs(base_dir)
     if not csv_files:
         logger.error(f"No CSV files found in: {base_dir}/*/1m/")
         return
@@ -58,9 +60,7 @@ def run_profiling() -> None:
         # Normalize open_time (handle 13-digit and 16-digit timestamps)
         df_normalized = df.withColumn(
             "clean_open_time",
-            F.when(
-                F.col("_c0") >= 1000000000000000, (F.col("_c0") / 1000).cast(LongType())
-            ).otherwise(F.col("_c0").cast(LongType())),
+            get_spark_timestamp_ms_col("_c0"),
         )
 
         # Check for null rows in core pricing columns
@@ -84,7 +84,8 @@ def run_profiling() -> None:
             F.sum("is_null").alias("null_values_count"),
         )
 
-        # Calculate duplicate timestamps per symbol efficiently by grouping by (symbol, clean_open_time)
+        # Calculate duplicate timestamps per symbol efficiently
+        # by grouping by (symbol, clean_open_time)
         dup_df = (
             df_normalized.groupBy("symbol", "clean_open_time")
             .count()
@@ -127,9 +128,7 @@ def run_profiling() -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     try:
         run_profiling()
     except Exception:

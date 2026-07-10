@@ -32,9 +32,7 @@ def is_excluded(ticker: str) -> bool:
     base = ticker[: -len("USDT")]
     if any(base.endswith(sfx) for sfx in EXCLUDED_SUFFIXES):
         return True
-    if base in STABLECOIN_BASES:
-        return True
-    return False
+    return base in STABLECOIN_BASES
 
 
 def main() -> None:
@@ -62,9 +60,7 @@ def main() -> None:
         len(tickers_to_exclude),
     )
 
-    date_end = datetime.date.today() - relativedelta(
-        days=1
-    )  # yesterday (last complete day)
+    date_end = datetime.date.today() - relativedelta(days=1)  # yesterday (last complete day)
     date_start = date_end - relativedelta(years=YEARS_OF_HISTORY)
 
     data_dumper.dump_data(

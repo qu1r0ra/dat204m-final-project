@@ -11,7 +11,11 @@ import logging
 from pyspark.sql import functions as F
 
 import src.config as config
-from src.pipeline.schemas import RAW_KLINE_CSV_SCHEMA
+from src.pipeline.schemas import (
+    RAW_KLINE_CSV_SCHEMA,
+    get_spark_timestamp_sec_col,
+)
+from src.utils.helpers import discover_symbol_csvs
 from src.utils.spark_client import get_spark_session
 
 logger = logging.getLogger(__name__)
@@ -20,32 +24,15 @@ logger = logging.getLogger(__name__)
 def generate_sample() -> None:
     logger.info("Starting Spark-based sample Parquet generation...")
 
-    # Identify downloaded CSV files for our TOP_20_SYMBOLS
-    valid_paths = []
-    for symbol in config.TOP_20_SYMBOLS:
-        symbol_dir = (
-            config.RAW_KLINES_DIR / "spot" / "monthly" / "klines" / symbol / "1m"
-        )
-        if symbol_dir.exists():
-            csv_files = list(symbol_dir.glob("*.csv"))
-            if csv_files:
-                # Add the resolved file paths directly for Spark to read
-                valid_paths.extend([str(p) for p in csv_files])
-                logger.info(
-                    f"Adding symbol {symbol} with {len(csv_files)} files to sample."
-                )
-            else:
-                logger.warning(f"No CSV files found in {symbol_dir}.")
-        else:
-            logger.warning(f"Directory {symbol_dir} does not exist.")
+    base_dir = config.RAW_KLINES_DIR
+    valid_paths = discover_symbol_csvs(config.TOP_20_SYMBOLS, base_dir)
+
+    if valid_paths:
+        logger.info(f"Adding {len(valid_paths)} files to sample.")
 
     if not valid_paths:
-        logger.error(
-            "No valid CSV files found for any of the configured TOP_20_SYMBOLS."
-        )
-        logger.error(
-            "Please run the klines downloader script or verify that raw datasets exist."
-        )
+        logger.error("No valid CSV files found for any of the configured TOP_20_SYMBOLS.")
+        logger.error("Please run the klines downloader script or verify that raw datasets exist.")
         return
 
     spark = get_spark_session()
@@ -54,7 +41,7 @@ def generate_sample() -> None:
     raw_schema = RAW_KLINE_CSV_SCHEMA
 
     # Convert paths to forward slashes for cross-platform compatibility
-    paths_list = [p.replace("\\", "/") for p in valid_paths]
+    paths_list = [str(p).replace("\\", "/") for p in valid_paths]
 
     # Define output path
     spark_parquet_path = config.SAMPLE_DATA_DIR / "binance_sample_spark.parquet"
@@ -71,12 +58,8 @@ def generate_sample() -> None:
         )
 
         # Normalize timestamps and cast to Proper Spark Timestamps
-        open_time_sec = F.when(
-            F.col("_c0") >= 1000000000000000, F.col("_c0") / 1000000.0
-        ).otherwise(F.col("_c0") / 1000.0)
-        close_time_sec = F.when(
-            F.col("_c6") >= 1000000000000000, F.col("_c6") / 1000000.0
-        ).otherwise(F.col("_c6") / 1000.0)
+        open_time_sec = get_spark_timestamp_sec_col("_c0")
+        close_time_sec = get_spark_timestamp_sec_col("_c6")
 
         df_processed = df.select(
             open_time_sec.cast("timestamp").alias("open_time"),
@@ -93,11 +76,10 @@ def generate_sample() -> None:
             F.col("symbol"),
         )
 
-        logger.info(
-            f"Writing compressed sample Parquet to: {spark_parquet_path_str}..."
-        )
+        logger.info(f"Writing compressed sample Parquet to: {spark_parquet_path_str}...")
 
-        # Sort chronologically by symbol and open_time to maintain 1-to-1 compatibility with local DuckDB output
+        # Sort chronologically by symbol and open_time to maintain 1-to-1 compatibility
+        # with local DuckDB output
         df_sorted = df_processed.orderBy("symbol", "open_time")
 
         df_sorted.write.mode("overwrite").option("compression", "zstd").parquet(
@@ -114,7 +96,8 @@ def generate_sample() -> None:
         ).collect()[0]
 
         logger.info(
-            f"Verified Spark Parquet contains {counts['total_rows']:,} rows across {counts['unique_symbols']} symbols."
+            f"Verified Spark Parquet contains {counts['total_rows']:,} rows "
+            f"across {counts['unique_symbols']} symbols."
         )
 
     except Exception as e:
@@ -125,9 +108,7 @@ def generate_sample() -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     try:
         generate_sample()
     except Exception:

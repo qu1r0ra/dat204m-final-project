@@ -1,6 +1,8 @@
-import pytest
 from pathlib import Path
+
 import duckdb
+import pytest
+
 import src.config as config
 from src.pipeline.preprocess import run_profiling
 from src.pipeline.sample_generator import generate_sample
@@ -67,7 +69,7 @@ def test_run_profiling(mock_pipeline_env):
     assert profile_path.exists()
 
     # Verify report content
-    with open(profile_path, "r") as f:
+    with open(profile_path) as f:
         content = f.read()
         assert "Dataset Profile Report" in content
         assert "BTCUSDT" in content

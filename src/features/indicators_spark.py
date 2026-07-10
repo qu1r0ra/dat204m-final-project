@@ -8,13 +8,14 @@ across symbols using Spark Pandas Grouped Map UDFs (applyInPandas).
 import polars as pl
 from pyspark.sql import DataFrame
 from pyspark.sql.types import (
-    StructType,
-    StructField,
     DoubleType,
-    TimestampType,
-    StringType,
     IntegerType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
 )
+
 from src.features.indicators import compute_indicators, compute_stationary_features
 
 # Complete schema for the Spark DataFrame after running compute_indicators

@@ -11,6 +11,7 @@ import polars as pl
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 # Setup logging
 import logging
@@ -49,7 +50,7 @@ def split_data_chronologically(
 
 def prepare_features_and_targets(
     df: pl.DataFrame, feature_cols: list[str], target_col: str
-) -> tuple[list, list]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Extracts features and target labels as NumPy arrays, dropping any remaining nulls."""
     clean_df = df.select(feature_cols + [target_col]).drop_nulls()
 
@@ -65,7 +66,13 @@ def prepare_features_and_targets(
     return X, y
 
 
-def train_pipeline(X_train, y_train, X_val, y_val, feature_cols: list[str]) -> dict:
+def train_pipeline(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_val: np.ndarray,
+    y_val: np.ndarray,
+    feature_cols: list[str],
+) -> dict:
     """Trains a Logistic Regression and a Random Forest Classifier on scaled features.
 
     Returns a dictionary containing the trained models, scaler, and logs.

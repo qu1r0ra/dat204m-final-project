@@ -9,6 +9,7 @@ import argparse
 import logging
 import sys
 import time
+
 import boto3
 import botocore.exceptions
 
@@ -33,20 +34,13 @@ class CrawlerTimeoutError(AWSError):
 def get_boto3_session() -> boto3.Session:
     """Initializes and returns a boto3 Session using configurations from config.py."""
     session_kwargs = {}
-    if config.AWS_ACCESS_KEY_ID and config.AWS_ACCESS_KEY_ID not in (
-        "your_access_key_id_if_any",
-        "",
-    ):
+    if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"):
         session_kwargs["aws_access_key_id"] = config.AWS_ACCESS_KEY_ID
-    if config.AWS_SECRET_ACCESS_KEY and config.AWS_SECRET_ACCESS_KEY not in (
-        "your_secret_access_key_if_any",
-        "",
+    if config.AWS_SECRET_ACCESS_KEY and not config.AWS_SECRET_ACCESS_KEY.startswith(
+        "your_"
     ):
         session_kwargs["aws_secret_access_key"] = config.AWS_SECRET_ACCESS_KEY
-    if config.AWS_SESSION_TOKEN and config.AWS_SESSION_TOKEN not in (
-        "your_session_token_if_any",
-        "",
-    ):
+    if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith("your_"):
         session_kwargs["aws_session_token"] = config.AWS_SESSION_TOKEN
     if config.AWS_REGION:
         session_kwargs["region_name"] = config.AWS_REGION
@@ -54,7 +48,7 @@ def get_boto3_session() -> boto3.Session:
     return boto3.Session(**session_kwargs)
 
 
-def deploy_stack(teammate_ids: list[str] = None) -> None:
+def deploy_stack(teammate_ids: list[str] | None = None) -> None:
     """Deploys or updates the Hub CloudFormation stack containing buckets and databases."""
     session = get_boto3_session()
     cf = session.client("cloudformation")
@@ -64,7 +58,7 @@ def deploy_stack(teammate_ids: list[str] = None) -> None:
     if not template_path.exists():
         raise AWSError(f"CloudFormation template not found at: {template_path}")
 
-    with open(template_path, "r") as f:
+    with open(template_path) as f:
         template_body = f.read()
 
     teammates_str = ",".join(teammate_ids) if teammate_ids else ""

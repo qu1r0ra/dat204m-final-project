@@ -8,6 +8,7 @@ data/sample/binance_sample.parquet.
 
 import logging
 import os
+
 import duckdb
 
 import src.config as config
@@ -106,10 +107,16 @@ def generate_sample() -> None:
 
     except Exception as e:
         logger.error(f"Failed to generate sample Parquet: {e}")
+        raise
 
 
 if __name__ == "__main__":
+    import sys
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
     )
-    generate_sample()
+    try:
+        generate_sample()
+    except Exception:
+        sys.exit(1)

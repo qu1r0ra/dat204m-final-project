@@ -102,6 +102,24 @@ def compute_stationary_features(df: pl.DataFrame) -> pl.DataFrame:
 
     This ensures features are scale-invariant across different timeframes and symbols.
     """
+    required_cols = {
+        "close",
+        "sma_15",
+        "sma_50",
+        "ema_15",
+        "ema_50",
+        "bb_lower",
+        "bb_upper",
+        "macd_line",
+        "macd_signal",
+        "macd_hist",
+    }
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"Input Polars DataFrame is missing required indicator columns: {missing}"
+        )
+
     return df.with_columns(
         [
             ((pl.col("close") - pl.col("sma_15")) / pl.col("close")).alias(

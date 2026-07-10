@@ -7,12 +7,14 @@ to docs/data_profile_spark.md.
 """
 
 import logging
+
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, DoubleType, LongType
+from pyspark.sql.types import LongType
 
 import src.config as config
-from src.utils.spark_client import get_spark_session
+from src.pipeline.schemas import RAW_KLINE_CSV_SCHEMA
 from src.utils.helpers import generate_profile_markdown
+from src.utils.spark_client import get_spark_session
 
 logger = logging.getLogger(__name__)
 
@@ -39,22 +41,7 @@ def run_profiling() -> None:
     spark = get_spark_session()
 
     # Define schema explicitly for faster loading and type safety
-    raw_schema = StructType(
-        [
-            StructField("_c0", LongType(), True),  # open_time (epoch ms)
-            StructField("_c1", DoubleType(), True),  # open
-            StructField("_c2", DoubleType(), True),  # high
-            StructField("_c3", DoubleType(), True),  # low
-            StructField("_c4", DoubleType(), True),  # close
-            StructField("_c5", DoubleType(), True),  # volume
-            StructField("_c6", LongType(), True),  # close_time (epoch ms)
-            StructField("_c7", DoubleType(), True),  # quote_asset_volume
-            StructField("_c8", LongType(), True),  # number_of_trades
-            StructField("_c9", DoubleType(), True),  # taker_buy_base_asset_volume
-            StructField("_c10", DoubleType(), True),  # taker_buy_quote_asset_volume
-            StructField("_c11", DoubleType(), True),  # ignore/unused
-        ]
-    )
+    raw_schema = RAW_KLINE_CSV_SCHEMA
 
     paths_list = [str(p).replace("\\", "/") for p in csv_files]
     logger.info(f"Reading {len(paths_list)} resolved raw CSVs in Spark...")
@@ -117,7 +104,7 @@ def run_profiling() -> None:
 
     except Exception as e:
         logger.error(f"Failed to profile dataset via PySpark: {e}")
-        return
+        raise
 
     report_content = generate_profile_markdown(
         df_profile,
@@ -138,7 +125,12 @@ def run_profiling() -> None:
 
 
 if __name__ == "__main__":
+    import sys
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
     )
-    run_profiling()
+    try:
+        run_profiling()
+    except Exception:
+        sys.exit(1)

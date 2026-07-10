@@ -25,28 +25,29 @@ JAVA_OPTIONS = (
     "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED "
     "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"
 )
-import sys
-
-os.environ["JDK_JAVA_OPTIONS"] = JAVA_OPTIONS
-os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
-os.environ["PYSPARK_PYTHON"] = sys.executable
-os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
-
-
-import src.config as config  # noqa: E402
 from pyspark.sql import SparkSession  # noqa: E402
 
+import src.config as config  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
 
-def get_spark_session() -> SparkSession:
-    """Initializes and returns a unified SparkSession based on environment config."""
-    logger.info("Initializing Spark session...")
+def setup_spark_env() -> None:
+    """Configures required environment variables for Spark."""
+    import sys
 
+    os.environ["JDK_JAVA_OPTIONS"] = JAVA_OPTIONS
+    os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
+    os.environ["PYSPARK_PYTHON"] = sys.executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+    config.configure_java_home()
+
+
+def ensure_hadoop_home() -> None:
+    """Provisions winutils.exe for Windows and configures HADOOP_HOME."""
     if os.name == "nt":
-        from pathlib import Path
         import shutil
+        from pathlib import Path
 
         hadoop_dir = (config.DATA_DIR / "hadoop").resolve()
         bin_dir = hadoop_dir / "bin"
@@ -54,16 +55,27 @@ def get_spark_session() -> SparkSession:
         winutils_exe = bin_dir / "winutils.exe"
         if not winutils_exe.exists():
             attrib_exe = (
-                Path(os.environ.get("SystemRoot", "C:\\Windows"))
+                Path(os.environ.get("SYSTEMROOT", "C:\\Windows"))
                 / "System32"
                 / "attrib.exe"
             )
             if attrib_exe.exists():
                 try:
                     shutil.copy(str(attrib_exe), str(winutils_exe))
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.warning(
+                        f"Could not provision winutils.exe from {attrib_exe}: {e}. "
+                        "Spark may fail with Hadoop-related errors on Windows."
+                    )
         os.environ["HADOOP_HOME"] = str(hadoop_dir)
+
+
+def get_spark_session() -> SparkSession:
+    """Initializes and returns a unified SparkSession based on environment config."""
+    logger.info("Initializing Spark session...")
+
+    setup_spark_env()
+    ensure_hadoop_home()
 
     builder = (
         SparkSession.builder.appName("BinanceKLinesAnalytics")
@@ -84,10 +96,7 @@ def get_spark_session() -> SparkSession:
         logger.info("Configuring Spark for cluster/EMR execution...")
 
     # Configure AWS S3A access if AWS credentials are provided
-    if config.AWS_ACCESS_KEY_ID and config.AWS_ACCESS_KEY_ID not in (
-        "your_access_key_id_if_any",
-        "",
-    ):
+    if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"):
         logger.info("Configuring Spark S3A credentials...")
         builder = (
             builder.config("spark.jars.packages", config.SPARK_JARS_PACKAGES)
@@ -98,9 +107,8 @@ def get_spark_session() -> SparkSession:
             .config("spark.hadoop.fs.s3a.secret.key", config.AWS_SECRET_ACCESS_KEY)
         )
 
-        if config.AWS_SESSION_TOKEN and config.AWS_SESSION_TOKEN not in (
-            "your_session_token_if_any",
-            "",
+        if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith(
+            "your_"
         ):
             builder = builder.config(
                 "spark.hadoop.fs.s3a.session.token", config.AWS_SESSION_TOKEN

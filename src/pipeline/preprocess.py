@@ -7,6 +7,7 @@ to docs/data_profile.md.
 """
 
 import logging
+
 import duckdb
 
 import src.config as config
@@ -65,7 +66,7 @@ def run_profiling() -> None:
             df_profile = con.execute(query).df()
     except Exception as e:
         logger.error(f"Failed to profile dataset via DuckDB: {e}")
-        return
+        raise
 
     report_content = generate_profile_markdown(
         df_profile,
@@ -85,7 +86,12 @@ def run_profiling() -> None:
 
 
 if __name__ == "__main__":
+    import sys
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
     )
-    run_profiling()
+    try:
+        run_profiling()
+    except Exception:
+        sys.exit(1)

@@ -8,16 +8,17 @@ via the `binance_historical_data` package. No API key required.
 import datetime
 import logging
 import os
-from dateutil.relativedelta import relativedelta
+
 from binance_historical_data import BinanceDataDumper
+from dateutil.relativedelta import relativedelta
 
 # Import parameters and exclusion config from central src/config.py
 from src.config import (
-    RAW_KLINES_DIR,
-    YEARS_OF_HISTORY,
     DATA_FREQUENCY,
-    STABLECOIN_BASES,
     EXCLUDED_SUFFIXES,
+    RAW_KLINES_DIR,
+    STABLECOIN_BASES,
+    YEARS_OF_HISTORY,
 )
 
 logger = logging.getLogger(__name__)

@@ -5,10 +5,11 @@ Defines repository paths, target symbols, prediction horizons, S3 credentials,
 and toggles for local/cloud execution modes.
 """
 
+import logging
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
-import logging
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
@@ -166,11 +167,15 @@ SPARK_JARS_PACKAGES = (
 
 # Optional: configure JAVA_HOME to force a specific Java runtime for Spark
 JAVA_HOME = os.getenv("JAVA_HOME")
-if JAVA_HOME:
-    os.environ["JAVA_HOME"] = JAVA_HOME
-    java_bin = os.path.join(JAVA_HOME, "bin")
-    if java_bin not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = java_bin + os.pathsep + os.environ.get("PATH", "")
+
+
+def configure_java_home() -> None:
+    """Lazily configures JAVA_HOME and updates PATH for Spark."""
+    if JAVA_HOME:
+        os.environ["JAVA_HOME"] = JAVA_HOME
+        java_bin = os.path.join(JAVA_HOME, "bin")
+        if java_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = java_bin + os.pathsep + os.environ.get("PATH", "")
 
 
 # ---------------------------------------------------------------------------

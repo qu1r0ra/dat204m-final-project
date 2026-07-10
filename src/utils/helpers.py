@@ -5,15 +5,16 @@ Provides common timestamp conversions and markdown report formatting tools.
 """
 
 import datetime
+
 import pandas as pd
 
 
-def ms_to_str(ms: float) -> str:
+def ms_to_str(ms: int) -> str:
     """Converts epoch milliseconds to formatted UTC timestamp string."""
     try:
-        return datetime.datetime.fromtimestamp(
-            ms / 1000.0, datetime.timezone.utc
-        ).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.fromtimestamp(ms / 1000.0, datetime.UTC).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     except Exception:
         return str(ms)
 
@@ -63,9 +64,9 @@ def generate_profile_markdown(
         "| :--- | :---: | :---: | :---: | :---: | :--- | :--- | :---: | :---: |",
     ]
 
-    for _, row in df_profile.iterrows():
-        report_lines.append(
-            f"| {row['symbol']} | {row['row_count']:,} | {row['expected_rows']:,} | {row['missing_rows']:,} | {row['gap_percentage']}% | {row['start_date']} | {row['end_date']} | {row['duplicate_timestamps']} | {row['null_values_count']} |"
-        )
+    report_lines.extend(
+        f"| {row.symbol} | {row.row_count:,} | {row.expected_rows:,} | {row.missing_rows:,} | {row.gap_percentage}% | {row.start_date} | {row.end_date} | {row.duplicate_timestamps} | {row.null_values_count} |"
+        for row in df_profile.itertuples(index=False)
+    )
 
     return "\n".join(report_lines) + "\n"

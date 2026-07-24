@@ -16,6 +16,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+from typing import Any
+from src.models.evaluation import calculate_metrics, log_metrics, save_metrics_json
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +28,7 @@ class ModelArtifacts:
     logistic_regression: LogisticRegression
     random_forest: RandomForestClassifier
     feature_names: list[str]
+    metrics: dict[str, dict[str, Any]] | None = None
 
 
 def split_data_chronologically(
@@ -94,8 +98,10 @@ def train_pipeline(
     logger.info("Training Logistic Regression...")
     lr = LogisticRegression(max_iter=1000, random_state=42, C=0.1)
     lr.fit(X_train_scaled, y_train)
-    lr_val_acc = lr.score(X_val_scaled, y_val)
-    logger.info(f"Logistic Regression Validation Accuracy: {lr_val_acc:.4f}")
+    lr_val_preds = lr.predict(X_val_scaled)
+    lr_val_probs = lr.predict_proba(X_val_scaled)[:, 1]
+    lr_metrics = calculate_metrics(y_val, lr_val_preds, lr_val_probs)
+    log_metrics(lr_metrics, model_name="Logistic Regression")
 
     # 2. Random Forest Classifier
     logger.info("Training Random Forest Classifier (this may take a few moments)...")
@@ -103,14 +109,22 @@ def train_pipeline(
         n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
     )
     rf.fit(X_train_scaled, y_train)
-    rf_val_acc = rf.score(X_val_scaled, y_val)
-    logger.info(f"Random Forest Validation Accuracy: {rf_val_acc:.4f}")
+    rf_val_preds = rf.predict(X_val_scaled)
+    rf_val_probs = rf.predict_proba(X_val_scaled)[:, 1]
+    rf_metrics = calculate_metrics(y_val, rf_val_preds, rf_val_probs)
+    log_metrics(rf_metrics, model_name="Random Forest")
+
+    metrics_dict = {
+        "logistic_regression": lr_metrics,
+        "random_forest": rf_metrics,
+    }
 
     return ModelArtifacts(
         scaler=scaler,
         logistic_regression=lr,
         random_forest=rf,
         feature_names=feature_cols,
+        metrics=metrics_dict,
     )
 
 
@@ -123,4 +137,9 @@ def save_model_artifacts(artifacts: ModelArtifacts, dest_dir: Path) -> None:
     logger.info(f"Saving ML artifacts to {artifact_path}...")
     with open(artifact_path, "wb") as f:
         pickle.dump(artifacts, f)
+
+    if artifacts.metrics:
+        json_path = dest_dir / "ml_metrics.json"
+        save_metrics_json(artifacts.metrics, json_path)
+
     logger.info("Model artifacts saved successfully.")

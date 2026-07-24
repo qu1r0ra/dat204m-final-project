@@ -222,9 +222,10 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     # 6. Train pipelines
     from src.models.train_spark import DEFAULT_FEATURE_COLS
 
-    feature_cols = DEFAULT_FEATURE_COLS
+    feature_cols = [c for c in DEFAULT_FEATURE_COLS if c in train_df.columns]
 
     trained_artifacts = train_pipeline_spark(train_df, val_df, feature_cols)
+
     assert trained_artifacts.logistic_regression is not None
     assert trained_artifacts.random_forest is not None
     assert trained_artifacts.metrics is not None

@@ -16,7 +16,9 @@ Ensure all development adheres to the approved toolchain and coding guidelines.
 - **Query Engine**: Use `duckdb` for fast processing of large raw CSV datasets (profiling and sample generation)
 - **Feature Engineering**: Use `polars` for technical indicators and features to leverage multi-threaded speed
 - **Machine Learning**: Use `scikit-learn` for training and evaluation pipelines
+- **Deep Learning**: Use `pytorch` (version 2.x, CUDA-accelerated) for sequence models (LSTM)
 - **Plotting**: Use `matplotlib` and `seaborn` for generating analytical visualizations
+
 
 ## Configurations & Environment Setup
 

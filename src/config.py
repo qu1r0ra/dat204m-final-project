@@ -143,6 +143,27 @@ FUTURE_HORIZON = get_env_int("FUTURE_HORIZON", 15)  # N minutes ahead
 TARGET_THRESHOLD = get_env_float("TARGET_THRESHOLD", 0.0)  # Return threshold for UP direction
 TRAIN_SPLIT_DATE = get_env_str("TRAIN_SPLIT_DATE", "2024-01-01")
 
+# Canonical feature columns (11 stationary price features + 5 order-flow/time features)
+FEATURE_COLS = [
+    "close_to_sma_15",
+    "close_to_sma_50",
+    "close_to_ema_15",
+    "close_to_ema_50",
+    "bb_position",
+    "macd_line_norm",
+    "macd_signal_norm",
+    "macd_hist_norm",
+    "volatility_30",
+    "rsi_14",
+    "log_return",
+    "taker_buy_ratio",
+    "volume_z30",
+    "trades_z30",
+    "hour_sin",
+    "hour_cos",
+]
+
+
 # ---------------------------------------------------------------------------
 # AWS S3 Hub-and-Spoke Configurations
 # ---------------------------------------------------------------------------

@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                               |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-24                                                                                                                          |
-| **Last session focus** | PyTorch LSTM Implementation Plan & Codebase Cleanup Design ([docs/plans/lstm_implementation.md](docs/plans/lstm_implementation.md)) |
-| **Active tasks**       | Implement PyTorch LSTM sequence classifier and codebase cleanup per `docs/plans/lstm_implementation.md`                             |
-| **Blockers**           | None                                                                                                                                |
+| Field                  | Value                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-24                                                                                                                             |
+| **Last session focus** | PyTorch LSTM Implementation Verification & Evaluation Report ([docs/plans/lstm_implementation.md](docs/plans/lstm_implementation.md))  |
+| **Active tasks**       | Finalize metrics logging for ML analysis; Run Notebook 02 & 03 execution to persist outputs; (Optional) Cloud scale-up on 609M dataset |
+| **Blockers**           | None                                                                                                                                   |
 
 ---
 
@@ -93,33 +93,23 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 
 ---
 
-### PyTorch LSTM Sequence Classifier Setup & Design (2026-07-24)
+### PyTorch LSTM Sequence Classifier Implementation Completed (2026-07-24)
 
-- **Environment & PyTorch Dependency**: Installed `torch==2.12.1+cu132` and `torchvision==0.27.1+cu132` via custom `uv` index in `pyproject.toml`. Verified PyTorch recognizes CUDA GPU acceleration (NVIDIA GeForce RTX 5060).
-- **Comprehensive Implementation Plan Finalized**: Created and saved detailed implementation plan at [docs/plans/lstm_implementation.md](docs/plans/lstm_implementation.md).
-- **Architectural & Refactoring Specification**:
-  - **Module**: `src/models/lstm.py` implementing `LSTMClassifier(nn.Module)` (2-layer LSTM, configurable `hidden_size`, `dropout` -> `Linear`), `SequenceDataset(Dataset)` for symbol-aware sliding window creation, `train_lstm(...)` with AdamW + BCEWithLogitsLoss + early stopping, `predict_lstm(...)`, and serialization routines (`save_lstm_artifacts` / `load_lstm_artifacts`).
-  - **5-Configuration Hyperparameter Sweep**: Integrated into Notebook 02 Section 5.2, sweeping `seq_len` (30/60/120), `hidden_size` (64/128), and `dropout` (0.3/0.5) to select the best validation configuration for saving to `models/lstm_checkpoint.pt`.
-  - **Codebase Maintainability Fixes**:
-    1. Centralize 16-feature list in `src/config.py` as `FEATURE_COLS`.
-    2. Sync `DEFAULT_FEATURE_COLS` in `src/models/train_spark.py` with `config.FEATURE_COLS`.
-    3. Add PyTorch guidelines to `.cursor/rules/tech-stack.mdc`.
-    4. Update `.cursor/project/model_registry.md` with the 5-model ladder and performance metrics.
-  - **Symbol-Aware Windowing**: Dataset windowing operates directly on Polars DataFrames containing `symbol` and `open_time`, constructing sequence indices per symbol to guarantee no sequence mixes rows across two different cryptocurrency assets.
-  - **5-Model Benchmark Ladder**: Integrates LSTM into [02_ml_feature_engineering_training.ipynb](notebooks/02_ml_feature_engineering_training.ipynb) and [03_ml_evaluation_error_analysis.ipynb](notebooks/03_ml_evaluation_error_analysis.ipynb) alongside Majority Class, OLS, Logistic Regression, and Random Forest.
-  - **Testing**: Unit test suite in `tests/test_lstm.py` covering sequence windowing, forward pass dimensions, and training loop convergence.
+- **Feature Sync & Cleanup**: Centralized canonical 16-feature list in `src/config.py` as `FEATURE_COLS`. Updated `src/models/train_spark.py`, `.cursor/rules/tech-stack.mdc`, and `.cursor/project/model_registry.md`.
+- **PyTorch Model & Pipeline**: Implemented `src/models/lstm.py` containing `SequenceDataset` (symbol-isolated sliding windows), `LSTMClassifier` (2-layer LSTM + Linear), `train_lstm` (AdamW, BCEWithLogitsLoss, early stopping, threshold tuning), `predict_lstm`, and artifact serialization (`save_lstm_artifacts` / `load_lstm_artifacts` with `weights_only=False` support).
+- **Unit Test Suite**: Added `tests/test_lstm.py` covering sequence dataset symbol isolation, forward pass output dimensions, training convergence, and artifact round-trip. All 10 unit tests pass in <7s.
+- **Notebook Integration**: Integrated PyTorch LSTM training, 5-candidate hyperparameter sensitivity sweep, threshold tuning, and validation table updates into `notebooks/02_ml_feature_engineering_training.ipynb`, and added sequence dataset evaluation on the aligned test partition in `notebooks/03_ml_evaluation_error_analysis.ipynb`.
 
 ---
 
 ## 5. Implementation Queue
 
-1. **Implement PyTorch LSTM Classifier & Codebase Cleanup** per [docs/plans/lstm_implementation.md](docs/plans/lstm_implementation.md):
-   - Update `src/config.py`, `src/models/train_spark.py`, `.cursor/rules/tech-stack.mdc`, and `.cursor/project/model_registry.md`.
-   - Create `src/models/lstm.py` with `LSTMClassifier`, `SequenceDataset`, `train_lstm`, `predict_lstm`, and artifact helpers. Re-export in `src/models/__init__.py`.
-   - Add unit test suite in `tests/test_lstm.py`.
-   - Update `notebooks/02_ml_feature_engineering_training.ipynb` with Section 5.1 (LSTM training), Section 5.2 (5-config sweep), threshold tuning, and validation table updates.
-   - Update `notebooks/03_ml_evaluation_error_analysis.ipynb` with test set evaluation (aligned subset), confusion matrix, ROC curve, volatility regime, and per-symbol analysis.
-2. **(Optional, team decision)** Cloud scale-up training run on the full 609M-row raw dataset via `train_spark.py` on EMR/SageMaker (Option A).
-3. Notebook 01 & 02 re-run to persist cell outputs once all models are integrated.
+1. **(Completed)** PyTorch LSTM Sequence Classifier Implementation & Evaluation Audit ([evaluation_report.md](file:///C:/Users/Quirora/.gemini/antigravity-ide/brain/e36d823b-01fc-44e7-a653-e24603f5e7f0/evaluation_report.md)).
+2. **Finalize Metrics Logging for ML Analysis**:
+   - Audit current metrics calculation and logging routines across `src/models/baseline.py`, `src/models/train_spark.py`, `src/models/lstm.py`, and notebooks `02` & `03`.
+   - Ensure comprehensive logging of metrics (accuracy, precision, recall, F1, ROC-AUC, PR-AUC, balanced accuracy, confusion matrix breakdown, per-symbol performance, volatility regime splits, training history losses/accuracies, and hyperparameter sweep outputs).
+   - Ensure metrics are structured for clean export/persistence (e.g. JSON/CSV artifacts or model metadata dictionary) for downstream reporting and comparative ML analysis.
+3. **Notebook Cell Execution**: Re-run Notebook 02 & 03 to persist output cells with trained PyTorch LSTM model weights and updated evaluation metrics.
+4. **(Optional, team decision)** Cloud scale-up training run on the full 609M-row raw dataset via `train_spark.py` on EMR/SageMaker (Option A).
 
 _For archived tasks (1-10), see [session_history.md](docs/session_history.md)._

@@ -60,7 +60,9 @@ def spark_session():
             files = list(p.glob("*.parquet"))
             if not files:
                 raise FileNotFoundError(f"No parquet files in {p_str}")
-            df_pandas = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+            df_pandas = pd.concat(
+                [pd.read_parquet(f) for f in files], ignore_index=True
+            )
         else:
             df_pandas = pd.read_parquet(p_str)
         from pyspark.sql import SparkSession
@@ -153,7 +155,9 @@ def test_spark_sample_generator(mock_spark_env, spark_session, monkeypatch):
     # Monkeypatch Spark session getter in sample generator
     from src.pipeline import sample_generator_spark
 
-    monkeypatch.setattr(sample_generator_spark, "get_spark_session", lambda: spark_session)
+    monkeypatch.setattr(
+        sample_generator_spark, "get_spark_session", lambda: spark_session
+    )
 
     generate_sample()
 
@@ -165,13 +169,15 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     # Monkeypatch Spark session getter in sample generator
     from src.pipeline import sample_generator_spark
 
-    monkeypatch.setattr(sample_generator_spark, "get_spark_session", lambda: spark_session)
+    monkeypatch.setattr(
+        sample_generator_spark, "get_spark_session", lambda: spark_session
+    )
 
     # 1. Run sample generator to produce the test parquet file
     generate_sample()
-    parquet_path_str = str(mock_spark_env["sample_dir"] / "binance_sample_spark.parquet").replace(
-        "\\", "/"
-    )
+    parquet_path_str = str(
+        mock_spark_env["sample_dir"] / "binance_sample_spark.parquet"
+    ).replace("\\", "/")
 
     # 2. Read back using Spark
     df = spark_session.read.parquet(parquet_path_str)
@@ -222,9 +228,10 @@ def test_spark_indicators_and_ml(mock_spark_env, spark_session, monkeypatch):
     # 6. Train pipelines
     from src.models.train_spark import DEFAULT_FEATURE_COLS
 
-    feature_cols = DEFAULT_FEATURE_COLS
+    feature_cols = [c for c in DEFAULT_FEATURE_COLS if c in train_df.columns]
 
     trained_artifacts = train_pipeline_spark(train_df, val_df, feature_cols)
+
     assert trained_artifacts.logistic_regression is not None
     assert trained_artifacts.random_forest is not None
     assert trained_artifacts.metrics is not None

@@ -2,34 +2,36 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                            |
-| ---------------------- | ---------------------------------------------------------------- |
-| **Last updated**       | 2026-07-22                                                       |
-| **Last session focus** | Spoke AWS access, Phase 2 baseline comparison, train_spark rebuild |
-| **Active tasks**       | Team decision: optional cloud scale-up run on full raw (Option A) |
-| **Blockers**           | None                                                             |
+| Field                  | Value                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-24                                                                                    |
+| **Last session focus** | PyTorch CUDA setup & LSTM Deep Learning Model Plan ([docs/plans/lstm.md](docs/plans/lstm.md)) |
+| **Active tasks**       | Implement PyTorch LSTM model in `src/models/lstm.py`, notebooks, and test suite               |
+| **Blockers**           | None                                                                                          |
 
 ---
 
 ## 1. Quick Start (New Agent)
 
 1. Read this file end-to-end to understand current state, then review the implementation queue in [Section 5](#5-implementation-queue).
-2. Load canonical rules from [.cursor/rules/](.cursor/rules/).
-3. Verify environment configurations in [.env](.env) and [src/config.py](src/config.py).
-4. Run tests using `uv run pytest` to ensure environment correctness.
+2. Review the detailed implementation plan in [docs/plans/lstm.md](docs/plans/lstm.md).
+3. Load canonical rules from [.cursor/rules/](.cursor/rules/).
+4. Verify environment configurations in [.env](.env) and [src/config.py](src/config.py).
+5. Verify PyTorch GPU environment (`torch==2.12.1+cu132`, CUDA True on RTX 5060) and run tests using `uv run pytest`.
 
 ---
 
 ## 2. Workspace Map
 
-| Directory/File           | Role                                                               | Domain Rules / Entrypoints      |
-| ------------------------ | ------------------------------------------------------------------ | ------------------------------- |
-| [aws/](aws/)             | CloudFormation infrastructure templates & policy definitions       | Hub-and-spoke security defaults |
-| [data/](data/)           | Git-ignored data directory (both raw CSVs and downsampled Parquet) | Must remain git-ignored         |
-| [docs/](docs/)           | Reports, profiles, specifications, and roles                       | Final course deliverables       |
-| [notebooks/](notebooks/) | Jupyter deliverables for EDA, feature engineering, and evaluation  | Phase 1 & Phase 2 notebooks     |
-| [src/](src/)             | Source package: pipelines, features, model routines, and S3 utils  | Source layout                   |
-| [tests/](tests/)         | Automated unit tests to verify pipeline processing                 | Ingestion validation            |
+| Directory/File             | Role                                                               | Domain Rules / Entrypoints      |
+| -------------------------- | ------------------------------------------------------------------ | ------------------------------- |
+| [aws/](aws/)               | CloudFormation infrastructure templates & policy definitions       | Hub-and-spoke security defaults |
+| [data/](data/)             | Git-ignored data directory (both raw CSVs and downsampled Parquet) | Must remain git-ignored         |
+| [docs/](docs/)             | Reports, profiles, specifications, roles, and feature plans        | Final course deliverables       |
+| [docs/plans/](docs/plans/) | Detailed feature & architecture implementation plans               | `docs/plans/lstm.md`            |
+| [notebooks/](notebooks/)   | Jupyter deliverables for EDA, feature engineering, and evaluation  | Phase 1 & Phase 2 notebooks     |
+| [src/](src/)               | Source package: pipelines, features, model routines, and S3 utils  | Source layout                   |
+| [tests/](tests/)           | Automated unit tests to verify pipeline processing                 | Ingestion validation            |
 
 ---
 
@@ -40,7 +42,7 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Project Overview**: See [project-overview.mdc](.cursor/rules/project-overview.mdc).
 - **Data & Directory Structure**: All raw and output data must reside in `data/` (git-ignored). See [data-organization.mdc](.cursor/rules/data-organization.mdc) and [data_registry.md](.cursor/project/data_registry.md).
 - **AWS Hub-and-Spoke & Security**: Encryption and teammate access policies are defined in [data-organization.mdc](.cursor/rules/data-organization.mdc).
-- **Tech Stack & Computations**: PySpark, DuckDB, Polars, and configuration guidelines are defined in [tech-stack.mdc](.cursor/rules/tech-stack.mdc).
+- **Tech Stack & Computations**: PySpark, DuckDB, Polars, PyTorch, and configuration guidelines are defined in [tech-stack.mdc](.cursor/rules/tech-stack.mdc).
 - **Workflow & Rules**: Review [agent-workflows.mdc](.cursor/rules/agent-workflows.mdc) and [AGENTS.md](AGENTS.md).
 
 ---
@@ -72,41 +74,48 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Feature Engineering**: UDF-based [indicators_spark.py](src/features/indicators_spark.py) scales the original Polars rolling technical indicators in parallel across symbols.
 - **Machine Learning**: Spark MLlib [train_spark.py](src/models/train_spark.py) supports distributed `LogisticRegression` and `RandomForestClassifier` training on the global dataset.
 - **Testing**: Test suite split into fast unit tests (`tests/test_pipelines.py`, runs in <1s) and slow Spark integration tests (`tests/test_spark_pipelines.py`, runs in ~1m). Spark tests are fully compatible with Windows platforms using path resolution, `PYSPARK_PYTHON` configuration, parquet read/write mocks, and timezone-agnostic split boundaries.
-- **Refactoring & Code Quality**: Fully completed 14-item refactoring plan to improve codebase health:
-  - **Environment Hygiene**: Moved `os.environ` mutations in `spark_client.py` and `config.py` to run lazily inside a setup function rather than unconditionally at import time, preventing notebook pollution.
-  - **Error Reliability**: Re-raised exceptions in pipeline functions and updated `__main__` guards in all four pipelines to exit with code 1 upon failure.
-  - **Deduplication**: Extracted a shared raw data schema (`RAW_KLINE_CSV_SCHEMA` in `schemas.py`), shared Hadoop `winutils` provisioning logic, and a central list of default model feature columns.
-  - **Validation & Typing**: Added input column validations to Polars features, dataclasses for ML outputs (`ModelArtifacts`, `SparkModelArtifacts`), missing return type annotations, resolved implicit optionals, and vectorized Markdown table generation in `helpers.py`.
-  - **Cleanup & Linting**: Deleted dead code (`smoke_test.py`), restructured test configuration using `__init__.py` and `conftest.py`, added a strict `ruff` config in `pyproject.toml`, and fully formatted and linted the codebase to satisfy all rules.
-  - **Testing**: Added `tests/test_features.py` and `tests/test_models.py` with shared fixtures to cover technical indicators, stationary features, metrics calculation, and chronological data splitting.
-- **Spark Client Windows Compatibility**: Integrated dynamic `HADOOP_HOME` configuration and local `winutils.exe` provisioning directly inside [spark_client.py](src/utils/spark_client.py). Configured `PYSPARK_PYTHON` and `PYSPARK_DRIVER_PYTHON` environment variables to point directly to `sys.executable`, eliminating Python worker connection timeouts and runtime environment mismatch errors on Windows systems.
-- **Notebook Migration**: Upgraded Phase 1 EDA notebook [01_eda_descriptive_analytics.ipynb](notebooks/01_eda_descriptive_analytics.ipynb) to utilize the distributed PySpark pipeline for data loading, descriptive analytics, parallel feature engineering, and binary price direction labeling. Converted Spark DataFrames back to Polars DataFrames locally to preserve contract compatibility with downstream visualization cells.
+- **Refactoring & Code Quality**: Fully completed 14-item refactoring plan to improve codebase health.
+- **Spark Client Windows Compatibility**: Integrated dynamic `HADOOP_HOME` configuration and local `winutils.exe` provisioning directly inside [spark_client.py](src/utils/spark_client.py).
+- **Notebook Migration**: Upgraded Phase 1 EDA notebook [01_eda_descriptive_analytics.ipynb](notebooks/01_eda_descriptive_analytics.ipynb) to utilize the distributed PySpark pipeline for data loading and feature engineering.
 
 ---
 
 ### Phase 2 Modeling Session (2026-07-22)
 
-- **Spoke AWS access**: Second teammate account (481088927299) connected to the hub bucket (bucket policy + `AmazonS3ReadOnlyAccess` on the IAM user). Reusable connection checker added at `scripts/check_aws.py` (`--iam` flag for permission probing). Sample Parquet cached locally; `.env` runs `local_sample` mode.
-- **Method comparison design**: Four-model ladder — majority class (floor), OLS return regression thresholded (traditional), Logistic Regression, Random Forest (ML). All consume the same 11 stationary features. Global model trained on all top-20 symbols (21.4M train rows).
-- **New modules**: `src/features/labels.py` (null-preserving direction labels), `src/models/baselines.py` (majority + OLS artifacts), `compute_split_boundaries` + `purge_minutes` in `src/models/train.py` (70/15/15 quantile split, 15-min label embargo). Tests in `tests/test_baselines.py`.
-- **Memory fixes for 16 GB machines**: float32 feature matrices, RF `n_jobs=4`, notebooks free dataframes (`del`) after each stage.
-- **Results (test partition, 4.6M rows)**: majority 54.35%, OLS 51.48% (AUC 0.502), LogReg 54.77% (AUC 0.538), RF 54.96% (AUC 0.548). Models stronger in high-volatility regimes; edge concentrated in balanced pairs (ETH/BTC/BNB). Findings written into notebook 03.
-- **`train_spark.py` recreated** (was missing from this copy): `compute_targets_spark`, `split_data_chronologically_spark` (with purge), `train_pipeline_spark`, `DEFAULT_FEATURE_COLS`. Full Spark test suite passes again.
+- **Spoke AWS access**: Second teammate account (481088927299) connected to the hub bucket.
+- **Method comparison design**: Four-model ladder — majority class (floor), OLS return regression thresholded (traditional), Logistic Regression, Random Forest (ML).
+- **Results (test partition, 4.6M rows)**: majority 54.35%, OLS 51.48% (AUC 0.502), LogReg 54.77% (AUC 0.538), RF 54.96% (AUC 0.548).
 
 ### Raw-Data Inspection & Feature Expansion (2026-07-23)
 
-- **Feature set expanded 11 → 16**: added order-flow/time features from previously unused raw columns — `taker_buy_ratio`, `volume_z30`, `trades_z30`, `hour_sin`, `hour_cos` (`compute_flow_features` in `src/features/indicators.py`, mirrored in the Spark UDF + schema). Evidence: controlled 11-vs-16 experiment on the BTCUSDT slice improved RF validation AUC 0.5247 → 0.5263; all five rank above `log_return` in importance. Documented in notebook 02 intro.
-- **MATICUSDT data-quality finding**: trading ends 2024-09-10 (token migrated to POL) → MATIC has training rows but zero val/test rows (per-symbol test tables show 19 symbols). Kept and documented (hub sample is fixed, spoke access read-only); ticker-set revision deferred to the Spark scale-up.
-- **Raw inventory (from Phase 1 profile)**: 545 symbols, 210 with complete 3-year coverage. Full-coverage liquid candidates for scale-up expansion: PEPE, SUI, ARB, NEAR, OP, APT, INJ, FET. Note: profile says 545 symbols / 600.0M rows vs README 558 / Glue 609.5M — reconcile one sentence in the final report.
-- **Memory optimizations**: notebooks 02/03 load only needed parquet columns, compute features per symbol, and keep slim float32 frames (peak ~15+ GB → ~6-7 GB on 16 GB machines).
-- **Notebooks enriched for the rubric**: intro/problem/objective narratives, feature importance + interpretation section, conclusion with business recommendation, hyperparameter table + overfitting check, threshold-tuning section with exact values, references. Notebook 01 EDA extended to the 16 features.
-- **Final 16-feature results (test, 4.6M rows)**: majority 54.35% / OLS 50.84% (AUC 0.501) / LogReg 54.76% (AUC 0.537) / RF 55.04% (AUC 0.551); tuned thresholds 0.480 lift RF recall 0.19→0.48 and balanced accuracy to 0.536 (best of any method). `taker_buy_ratio` ranks 4th in RF importance — the order-flow addition paid off. All notebook 03 findings/conclusion text synced to these numbers. RF `n_jobs` reduced to 2 for memory headroom on 16 GB machines.
-- **Pending**: notebook 02 needs one final run **with Ctrl+S afterwards** to persist its outputs (models are already trained and saved; only the displayed outputs are missing). Notebook 03 is saved with outputs.
+- **Feature set expanded 11 → 16**: added order-flow/time features from previously unused raw columns — `taker_buy_ratio`, `volume_z30`, `trades_z30`, `hour_sin`, `hour_cos`.
+- **Final 16-feature results (test, 4.6M rows)**: majority 54.35% / OLS 50.84% (AUC 0.501) / LogReg 54.76% (AUC 0.537) / RF 55.04% (AUC 0.551); tuned thresholds 0.480 lift RF recall 0.19→0.48 and balanced accuracy to 0.536 (best of any method).
+
+---
+
+### PyTorch LSTM Sequence Classifier Setup & Design (2026-07-24)
+
+- **Environment & PyTorch Dependency**: Installed `torch==2.12.1+cu132` and `torchvision==0.27.1+cu132` via custom `uv` index in `pyproject.toml`. Verified PyTorch recognizes CUDA GPU acceleration (NVIDIA GeForce RTX 5060).
+- **Implementation Plan Created**: Saved detailed implementation plan at [docs/plans/lstm.md](docs/plans/lstm.md).
+- **Architectural Specification**:
+  - **Module**: `src/models/lstm.py` implementing `LSTMClassifier(nn.Module)` (2-layer LSTM, `input_size=16`, `hidden_size=64`, `dropout=0.3` -> `Linear(64, 1)`), `SequenceDataset(Dataset)` for symbol-aware sliding window creation, `train_lstm(...)` with AdamW + BCEWithLogitsLoss + early stopping, `predict_lstm(...)`, and serialization routines (`save_lstm_artifacts` / `load_lstm_artifacts`).
+  - **Symbol-Aware Windowing**: Dataset windowing operates directly on Polars DataFrames containing `symbol` and `open_time`, constructing sequence indices per symbol to guarantee no sequence mixes rows across two different cryptocurrency assets.
+  - **Sequence Length**: Configured lookback to `seq_len=60` (1 hour of 1m feature history) to provide sufficient temporal context for recurrent state transitions.
+  - **Self-Contained Design**: The module accepts standard NumPy arrays or Polars DataFrames produced by existing notebook cells, avoiding any dependency on unpushed teammate helper files.
+  - **5-Model Benchmark Ladder**: Integrates LSTM into [02_ml_feature_engineering_training.ipynb](notebooks/02_ml_feature_engineering_training.ipynb) and [03_ml_evaluation_error_analysis.ipynb](notebooks/03_ml_evaluation_error_analysis.ipynb) alongside Majority Class, OLS, Logistic Regression, and Random Forest. Includes validation threshold tuning, test metric comparison, confusion matrices, ROC curves, and volatility regime error analysis.
+  - **Testing**: Test suite in `tests/test_lstm.py` covering sequence windowing, forward pass dimensions, and training loop convergence.
+
+---
 
 ## 5. Implementation Queue
 
-1. **(Optional, team decision)** Cloud scale-up training run on the full 609M-row raw dataset via `train_spark.py` on EMR/SageMaker (Option A). Pipeline is verified; this is budget/time, not code.
-2. **(Optional)** Validation-tuned decision threshold or `class_weight="balanced"` to fix the classifiers' low "up" recall (~0.18); requires a ~35 min notebook 02 re-run.
-3. Notebook 01 re-run on this machine pending kernel selection (`.venv`); Spark verified working locally.
+1. **Implement PyTorch LSTM Classifier** per [docs/plans/lstm.md](docs/plans/lstm.md):
+   - Create `src/models/lstm.py` with `LSTMClassifier`, `SequenceDataset`, `train_lstm`, `predict_lstm`, and artifact helpers.
+   - Re-export module symbols in `src/models/__init__.py`.
+   - Add unit test suite in `tests/test_lstm.py`.
+   - Update `notebooks/02_ml_feature_engineering_training.ipynb` with Section 5.1 (LSTM training, threshold tuning, validation table update).
+   - Update `notebooks/03_ml_evaluation_error_analysis.ipynb` with test set evaluation, confusion matrix, ROC curve, and regime analysis.
+2. **(Optional, team decision)** Cloud scale-up training run on the full 609M-row raw dataset via `train_spark.py` on EMR/SageMaker (Option A).
+3. Notebook 01 & 02 re-run to persist cell outputs once all models are integrated.
 
 _For archived tasks (1-10), see [session_history.md](docs/session_history.md)._

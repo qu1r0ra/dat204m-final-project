@@ -92,10 +92,19 @@ Key hyperparameters are function arguments with defaults:
 
 ```python
 def train_lstm(
-    train_df, val_df, feature_cols, target_col="target",
-    seq_len=60, hidden_size=64, dropout=0.3,
-    lr=1e-3, weight_decay=1e-4, batch_size=2048,
-    max_epochs=20, patience=3, device=None,
+    train_df,
+    val_df,
+    feature_cols,
+    target_col="target",
+    seq_len=60,
+    hidden_size=64,
+    dropout=0.3,
+    lr=1e-3,
+    weight_decay=1e-4,
+    batch_size=2048,
+    max_epochs=20,
+    patience=3,
+    device=None,
 ): ...
 ```
 

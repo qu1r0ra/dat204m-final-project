@@ -63,6 +63,8 @@ A high-level overview of the repository organization:
 │   │   └── indicators_spark.py # UDF-based Spark feature indicators
 │   ├── models/               # Model definitions, training, and evaluation pipelines
 │   │   ├── __init__.py
+│   │   ├── evaluation.py     # Unified classification and evaluation metrics
+│   │   ├── lstm.py           # PyTorch sequence dataset & LSTM model architecture
 │   │   ├── train.py          # Scikit-learn training pipeline
 │   │   └── train_spark.py    # PySpark MLlib training pipeline
 │   ├── pipeline/             # Data preprocessing and ingestion pipelines
@@ -81,8 +83,12 @@ A high-level overview of the repository organization:
 ├── tests/                    # pytest suite for validation
 │   ├── __init__.py
 │   ├── conftest.py           # Shared test fixtures and configuration
+│   ├── test_evaluation.py    # Metric calculation unit tests
+│   ├── test_features.py      # Technical indicator unit tests
+│   ├── test_lstm.py          # PyTorch LSTM architecture & sequence dataset tests
+│   ├── test_models.py        # Baseline & scikit-learn model tests
 │   ├── test_pipelines.py     # Automated tests for ingestion and processing
-│   └── test_spark_pipelines.py # Spark-specific test suite
+│   └── test_spark_pipelines.py # Spark-specific integration test suite
 ├── AGENTS.md                 # Agent entrypoint and rules index
 └── HANDOFF.md                # Workspace living handoff
 ```
@@ -167,15 +173,21 @@ uv run python -m src.pipeline.sample_generator_spark
 
 ### 4.4. Running Tests
 
-Verify pipeline logic and correctness against mock data structures:
+Verify pipeline logic, feature engineering, baseline/ML models, and PyTorch LSTM architectures against unit test fixtures:
 
-**Standard pipeline tests**:
+**Full test suite**:
+
+```bash
+uv run pytest
+```
+
+**Fast unit tests (excluding Spark integration)**:
 
 ```bash
 uv run pytest -m "not spark"
 ```
 
-**Spark pipeline tests**:
+**Spark pipeline integration tests**:
 
 ```bash
 uv run pytest tests/test_spark_pipelines.py

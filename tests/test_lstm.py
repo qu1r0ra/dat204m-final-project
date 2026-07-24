@@ -115,19 +115,42 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
     assert isinstance(model, LSTMClassifier)
     assert 0.40 <= threshold <= 0.60
     assert len(history["epoch"]) > 0
+    assert "val_f1" in history
+    assert "val_roc_auc" in history
+    assert "threshold_grid_search" in history
+    assert "best_epoch" in history
+    assert "epochs_trained" in history
 
     # Test prediction utility
     val_ds = SequenceDataset(
-        val_df, feature_cols=feature_cols, target_col="target", seq_len=seq_len, scaler=scaler
+        val_df,
+        feature_cols=feature_cols,
+        target_col="target",
+        seq_len=seq_len,
+        scaler=scaler,
     )
     probs, preds = predict_lstm(model, val_ds, device="cpu")
     assert len(probs) == len(val_ds)
     assert len(preds) == len(val_ds)
 
-    # Test artifact save and load
+    # Test artifact save and load with metrics sidecar
     checkpoint_path = tmp_path / "lstm_test.pt"
     hparams = {"hidden_size": 16, "num_layers": 1, "dropout": 0.0}
-    save_lstm_artifacts(model, scaler, threshold, feature_cols, seq_len, hparams, checkpoint_path)
+    test_metrics = {"accuracy": 0.55, "f1": 0.50}
+    save_lstm_artifacts(
+        model,
+        scaler,
+        threshold,
+        feature_cols,
+        seq_len,
+        hparams,
+        checkpoint_path,
+        history=history,
+        metrics=test_metrics,
+    )
+
+    sidecar_json = tmp_path / "lstm_test_metrics.json"
+    assert sidecar_json.exists()
 
     loaded = load_lstm_artifacts(checkpoint_path, device="cpu")
     assert loaded["threshold"] == threshold

@@ -23,15 +23,15 @@ Living document for agent-to-agent and session-to-session continuity across the 
 
 ## 2. Workspace Map
 
-| Directory/File             | Role                                                               | Domain Rules / Entrypoints      |
-| -------------------------- | ------------------------------------------------------------------ | ------------------------------- |
-| [aws/](aws/)               | CloudFormation infrastructure templates & policy definitions       | Hub-and-spoke security defaults |
-| [data/](data/)             | Git-ignored data directory (both raw CSVs and downsampled Parquet) | Must remain git-ignored         |
-| [docs/](docs/)             | Reports, profiles, specifications, roles, and feature plans        | Final course deliverables       |
-| [docs/plans/](docs/plans/) | Detailed feature & architecture implementation plans               | `docs/plans/lstm.md`            |
-| [notebooks/](notebooks/)   | Jupyter deliverables for EDA, feature engineering, and evaluation  | Phase 1 & Phase 2 notebooks     |
-| [src/](src/)               | Source package: pipelines, features, model routines, and S3 utils  | Source layout                   |
-| [tests/](tests/)           | Automated unit tests to verify pipeline processing                 | Ingestion validation            |
+| Directory/File             | Role                                                               | Domain Rules / Entrypoints          |
+| -------------------------- | ------------------------------------------------------------------ | ----------------------------------- |
+| [aws/](aws/)               | CloudFormation infrastructure templates & policy definitions       | Hub-and-spoke security defaults     |
+| [data/](data/)             | Git-ignored data directory (both raw CSVs and downsampled Parquet) | Must remain git-ignored             |
+| [docs/](docs/)             | Reports, profiles, specifications, roles, and feature plans        | Final course deliverables           |
+| [docs/plans/](docs/plans/) | Detailed feature & architecture implementation plans               | `docs/plans/lstm_implementation.md` |
+| [notebooks/](notebooks/)   | Jupyter deliverables for EDA, feature engineering, and evaluation  | Phase 1 & Phase 2 notebooks         |
+| [src/](src/)               | Source package: pipelines, features, model routines, and S3 utils  | Source layout                       |
+| [tests/](tests/)           | Automated unit tests to verify pipeline processing                 | Ingestion validation                |
 
 ---
 
@@ -105,10 +105,10 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 ## 5. Implementation Queue
 
 1. **(Completed)** PyTorch LSTM Sequence Classifier Implementation & Evaluation Audit ([evaluation_report.md](file:///C:/Users/Quirora/.gemini/antigravity-ide/brain/e36d823b-01fc-44e7-a653-e24603f5e7f0/evaluation_report.md)).
-2. **Finalize Metrics Logging for ML Analysis**:
-   - Audit current metrics calculation and logging routines across `src/models/baseline.py`, `src/models/train_spark.py`, `src/models/lstm.py`, and notebooks `02` & `03`.
-   - Ensure comprehensive logging of metrics (accuracy, precision, recall, F1, ROC-AUC, PR-AUC, balanced accuracy, confusion matrix breakdown, per-symbol performance, volatility regime splits, training history losses/accuracies, and hyperparameter sweep outputs).
-   - Ensure metrics are structured for clean export/persistence (e.g. JSON/CSV artifacts or model metadata dictionary) for downstream reporting and comparative ML analysis.
+2. **(Completed) Finalize Metrics Logging for ML Analysis**:
+   - Audited metrics calculation across `src/models/evaluation.py`, `src/models/train.py`, `src/models/train_spark.py`, `src/models/lstm.py`, and notebooks `02` & `03`.
+   - Added comprehensive metrics (Accuracy, Precision, Recall, F1, ROC-AUC, PR-AUC, Balanced Accuracy, Log Loss, Specificity, NPV, Confusion Matrix breakdown, Per-Symbol performance, Volatility Regime splits, Per-Epoch Training/Validation curves, and Hyperparameter Sweep outputs).
+   - Implemented structured JSON persistence (`save_metrics_json`, `lstm_sweep_metrics.json`, `test_evaluation_metrics.json`, `test_regime_metrics.json`, `test_per_symbol_metrics.json`).
 3. **Notebook Cell Execution**: Re-run Notebook 02 & 03 to persist output cells with trained PyTorch LSTM model weights and updated evaluation metrics.
 4. **(Optional, team decision)** Cloud scale-up training run on the full 609M-row raw dataset via `train_spark.py` on EMR/SageMaker (Option A).
 

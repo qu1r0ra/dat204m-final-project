@@ -16,10 +16,14 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from src.features.indicators import compute_indicators, compute_stationary_features
+from src.features.indicators import (
+    compute_flow_features,
+    compute_indicators,
+    compute_stationary_features,
+)
 
-# Complete schema for the Spark DataFrame after running compute_indicators
-# and compute_stationary_features.
+# Complete schema for the Spark DataFrame after running compute_indicators,
+# compute_stationary_features, and compute_flow_features.
 INDICATOR_SCHEMA = StructType(
     [
         StructField("open_time", TimestampType(), True),
@@ -57,6 +61,12 @@ INDICATOR_SCHEMA = StructType(
         StructField("macd_line_norm", DoubleType(), True),
         StructField("macd_signal_norm", DoubleType(), True),
         StructField("macd_hist_norm", DoubleType(), True),
+        # Order-flow / time features
+        StructField("taker_buy_ratio", DoubleType(), True),
+        StructField("volume_z30", DoubleType(), True),
+        StructField("trades_z30", DoubleType(), True),
+        StructField("hour_sin", DoubleType(), True),
+        StructField("hour_cos", DoubleType(), True),
     ]
 )
 
@@ -75,11 +85,12 @@ def compute_indicators_spark(spark_df: DataFrame) -> DataFrame:
         # Run original, validated feature calculations
         pl_df_indicators = compute_indicators(pl_df)
         pl_df_stationary = compute_stationary_features(pl_df_indicators)
+        pl_df_flow = compute_flow_features(pl_df_stationary)
 
         # Return as pandas DataFrame matching INDICATOR_SCHEMA
         # Ensure column ordering matches schema
         cols_order = INDICATOR_SCHEMA.fieldNames()
-        pdf_out = pl_df_stationary.to_pandas()
+        pdf_out = pl_df_flow.to_pandas()
         return pdf_out[cols_order]
 
     # Group by symbol and execute the Pandas Grouped Map UDF in parallel

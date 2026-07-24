@@ -127,6 +127,51 @@ def compute_stationary_features(df: FrameType) -> FrameType:
     )
 
 
+def compute_flow_features(df: FrameType) -> FrameType:
+    """Computes order-flow ratio, volume/trades z-scores, and cyclical hour encodings.
+
+    Assumes input contains columns: symbol, open_time, volume, number_of_trades, taker_buy_base_asset_volume.
+    Supports both pl.DataFrame and pl.LazyFrame inputs.
+    Returns the DataFrame or LazyFrame with flow feature columns added.
+    """
+    import math
+
+    required_cols = {
+        "symbol",
+        "open_time",
+        "volume",
+        "number_of_trades",
+        "taker_buy_base_asset_volume",
+    }
+    cols = set(df.collect_schema().names()) if isinstance(df, pl.LazyFrame) else set(df.columns)
+    missing = required_cols - cols
+    if missing:
+        raise DataValidationError(
+            f"Input Polars DataFrame/LazyFrame is missing required flow feature columns: {missing}"
+        )
+
+    hour_expr = pl.col("open_time").dt.hour()
+    radians_expr = (2 * math.pi * hour_expr) / 24.0
+
+    vol_mean = pl.col("volume").rolling_mean(window_size=30).over("symbol")
+    vol_std = pl.col("volume").rolling_std(window_size=30).over("symbol")
+
+    trades_mean = pl.col("number_of_trades").rolling_mean(window_size=30).over("symbol")
+    trades_std = pl.col("number_of_trades").rolling_std(window_size=30).over("symbol")
+
+    return df.with_columns(
+        [
+            (pl.col("taker_buy_base_asset_volume") / (pl.col("volume") + 1e-10)).alias(
+                "taker_buy_ratio"
+            ),
+            ((pl.col("volume") - vol_mean) / (vol_std + 1e-10)).alias("volume_z30"),
+            ((pl.col("number_of_trades") - trades_mean) / (trades_std + 1e-10)).alias("trades_z30"),
+            radians_expr.sin().alias("hour_sin"),
+            radians_expr.cos().alias("hour_cos"),
+        ]
+    )
+
+
 def validate_feature_parity(
     polars_df: pl.DataFrame,
     spark_df_pandas: Any,

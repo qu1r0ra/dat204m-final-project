@@ -18,8 +18,47 @@ from src.utils.helpers import (
     normalize_path_str,
 )
 
+import polars as pl
+
+from src.exceptions import DataValidationError
+
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+def compute_split_boundaries(
+    df: pl.DataFrame, train_frac: float = 0.70, val_frac: float = 0.15
+) -> tuple[str, str]:
+    """Computes boundary timestamps for chronological splits based on timestamp quantiles.
+
+    Args:
+        df: Polars DataFrame containing 'open_time' column.
+        train_frac: Fraction of data allocated to training (default 0.70).
+        val_frac: Fraction of data allocated to validation (default 0.15).
+
+    Returns:
+        Tuple of (train_end_str, val_end_str) in 'YYYY-MM-DD HH:MM:SS' format.
+    """
+    times = df.select("open_time").sort("open_time")
+    n = len(times)
+    if n == 0:
+        raise DataValidationError(
+            "Cannot compute split boundaries on an empty DataFrame."
+        )
+
+    train_idx = int(n * train_frac)
+    val_idx = int(n * (train_frac + val_frac))
+
+    train_end_val = times["open_time"][min(train_idx, n - 1)]
+    val_end_val = times["open_time"][min(val_idx, n - 1)]
+
+    if isinstance(train_end_val, str):
+        return train_end_val, str(val_end_val)
+
+    train_end_str = train_end_val.strftime("%Y-%m-%d %H:%M:%S")
+    val_end_str = val_end_val.strftime("%Y-%m-%d %H:%M:%S")
+
+    return train_end_str, val_end_str
 
 
 def run_profiling() -> None:
@@ -98,7 +137,9 @@ def run_profiling() -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     try:
         run_profiling()
     except Exception:

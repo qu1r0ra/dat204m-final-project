@@ -50,27 +50,38 @@ class ModelArtifacts:
 
 
 def split_data_chronologically(
-    df: pl.DataFrame, train_end: str, val_end: str
+    df: pl.DataFrame,
+    train_end: str,
+    val_end: str,
+    purge_minutes: int = 0,
 ) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """Splits the dataframe chronologically to prevent look-ahead bias.
 
     - Train: open_time < train_end
-    - Val: train_end <= open_time < val_end
-    - Test: open_time >= val_end
+    - Val: train_end + purge_minutes <= open_time < val_end
+    - Test: open_time >= val_end + purge_minutes
     """
     logger.info(
-        f"Chronologically splitting data: train_end={train_end}, val_end={val_end}"
+        f"Chronologically splitting data: train_end={train_end}, val_end={val_end}, purge_minutes={purge_minutes}"
     )
 
     # Parse inputs to datetime objects
     train_end_dt = pl.lit(train_end).str.to_datetime()
     val_end_dt = pl.lit(val_end).str.to_datetime()
 
+    purge_delta = (
+        pl.duration(minutes=purge_minutes)
+        if purge_minutes > 0
+        else pl.duration(seconds=0)
+    )
+    val_start_dt = train_end_dt + purge_delta
+    test_start_dt = val_end_dt + purge_delta
+
     train_df = df.filter(pl.col("open_time") < train_end_dt)
     val_df = df.filter(
-        (pl.col("open_time") >= train_end_dt) & (pl.col("open_time") < val_end_dt)
+        (pl.col("open_time") >= val_start_dt) & (pl.col("open_time") < val_end_dt)
     )
-    test_df = df.filter(pl.col("open_time") >= val_end_dt)
+    test_df = df.filter(pl.col("open_time") >= test_start_dt)
 
     logger.info(
         f"Split sizes - Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}"

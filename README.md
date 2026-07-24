@@ -18,7 +18,8 @@ An end-to-end data pipeline and machine learning pipeline for descriptive and pr
   - [4.1. Downloading Raw Data](#41-downloading-raw-data)
   - [4.2. Running Profiling](#42-running-profiling)
   - [4.3. Generating Downsampled Parquet](#43-generating-downsampled-parquet)
-  - [4.4. Running Tests](#44-running-tests)
+  - [4.4. Unified Pipeline CLI](#44-unified-pipeline-cli)
+  - [4.5. Running Tests](#45-running-tests)
 - [5. Reproducing Analytical Results](#5-reproducing-analytical-results)
 - [6. AWS Hub-and-Spoke Architecture](#6-aws-hub-and-spoke-architecture)
 
@@ -171,7 +172,20 @@ uv run python -m src.pipeline.sample_generator
 uv run python -m src.pipeline.sample_generator_spark
 ```
 
-### 4.4. Running Tests
+### 4.4. Unified Pipeline CLI
+
+Alternatively, run end-to-end steps using the unified CLI entrypoint:
+
+```bash
+uv run python -m src.cli profile
+uv run python -m src.cli sample
+uv run python -m src.cli train-sklearn
+uv run python -m src.cli train-lstm
+uv run python -m src.cli train-spark
+uv run python -m src.cli evaluate
+```
+
+### 4.5. Running Tests
 
 Verify pipeline logic, feature engineering, baseline/ML models, and PyTorch LSTM architectures against unit test fixtures:
 

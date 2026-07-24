@@ -2,23 +2,34 @@
 Technical indicator computation library.
 
 Implements highly optimized vectorized financial indicator calculations in Polars
-grouped by asset symbol to prevent cross-contamination.
+grouped by asset symbol to prevent cross-contamination. Supports both pl.DataFrame
+and pl.LazyFrame for memory-efficient query execution.
 """
+
+from typing import Any, TypeVar
 
 import polars as pl
 
+from src.exceptions import DataValidationError
 
-def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
+FrameType = TypeVar("FrameType", pl.DataFrame, pl.LazyFrame)
+
+
+def compute_indicators(df: FrameType) -> FrameType:
     """Computes technical indicators for OHLCV data.
 
     Assumes input contains columns: symbol, open_time, open, high, low, close, volume.
-    Returns the DataFrame with indicator columns added.
+    Supports both pl.DataFrame and pl.LazyFrame inputs.
+    Returns the DataFrame or LazyFrame with indicator columns added.
     """
     # Validate required columns
     required_cols = {"symbol", "open_time", "open", "high", "low", "close", "volume"}
-    missing = required_cols - set(df.columns)
+    cols = set(df.collect_schema().names()) if isinstance(df, pl.LazyFrame) else set(df.columns)
+    missing = required_cols - cols
     if missing:
-        raise ValueError(f"Input Polars DataFrame is missing required columns: {missing}")
+        raise DataValidationError(
+            f"Input Polars DataFrame/LazyFrame is missing required columns: {missing}"
+        )
 
     # Ensure dataset is chronologically sorted by symbol and timestamp
     df = df.sort(["symbol", "open_time"])
@@ -44,10 +55,6 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     # Step 2: Derived Indicators (RSI, Volatility, Bollinger Bands, MACD Signal)
-    # To compute RSI:
-    # 1. Get price change
-    # 2. Split change into positive (gain) and negative (loss)
-    # 3. Calculate rolling averages
     change = pl.col("close").diff().over("symbol")
     gain = pl.when(change > 0).then(change).otherwise(0.0)
     loss = pl.when(change < 0).then(-change).otherwise(0.0)
@@ -78,10 +85,11 @@ def compute_indicators(df: pl.DataFrame) -> pl.DataFrame:
     return df_step2.drop(["bb_std"])
 
 
-def compute_stationary_features(df: pl.DataFrame) -> pl.DataFrame:
+def compute_stationary_features(df: FrameType) -> FrameType:
     """Transforms raw indicator prices into stationary relative metrics.
 
     This ensures features are scale-invariant across different timeframes and symbols.
+    Supports both pl.DataFrame and pl.LazyFrame inputs.
     """
     required_cols = {
         "close",
@@ -95,9 +103,12 @@ def compute_stationary_features(df: pl.DataFrame) -> pl.DataFrame:
         "macd_signal",
         "macd_hist",
     }
-    missing = required_cols - set(df.columns)
+    cols = set(df.collect_schema().names()) if isinstance(df, pl.LazyFrame) else set(df.columns)
+    missing = required_cols - cols
     if missing:
-        raise ValueError(f"Input Polars DataFrame is missing required indicator columns: {missing}")
+        raise DataValidationError(
+            f"Input Polars DataFrame/LazyFrame is missing required indicator columns: {missing}"
+        )
 
     return df.with_columns(
         [
@@ -114,3 +125,41 @@ def compute_stationary_features(df: pl.DataFrame) -> pl.DataFrame:
             (pl.col("macd_hist") / pl.col("close")).alias("macd_hist_norm"),
         ]
     )
+
+
+def validate_feature_parity(
+    polars_df: pl.DataFrame,
+    spark_df_pandas: Any,
+    feature_cols: list[str] | None = None,
+    tol: float = 1e-5,
+) -> bool:
+    """Asserts mathematical equivalence between Polars and Spark feature outputs within tolerance.
+
+    Args:
+        polars_df: Output DataFrame from Polars feature engineering.
+        spark_df_pandas: Output DataFrame from PySpark Pandas Grouped Map UDF converted to Pandas.
+        feature_cols: Feature column names to check for parity.
+        tol: Absolute tolerance limit.
+
+    Returns:
+        True if all feature columns match within tolerance.
+    """
+    import numpy as np
+
+    from src.config import FEATURE_COLS
+
+    cols = feature_cols if feature_cols is not None else FEATURE_COLS
+    check_cols = [c for c in cols if c in polars_df.columns and c in spark_df_pandas.columns]
+
+    for col in check_cols:
+        p_vals = polars_df.select(col).drop_nulls().to_numpy().ravel()
+        s_vals = spark_df_pandas[col].dropna().to_numpy().ravel()
+        min_len = min(len(p_vals), len(s_vals))
+        if min_len > 0:
+            max_diff = float(np.max(np.abs(p_vals[:min_len] - s_vals[:min_len])))
+            if max_diff > tol:
+                raise DataValidationError(
+                    f"Feature parity validation failed for column '{col}': "
+                    f"max difference {max_diff:.6f} > tolerance {tol}"
+                )
+    return True

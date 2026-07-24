@@ -180,6 +180,44 @@ def evaluate_by_regime(
     return regime_metrics
 
 
+def generate_evaluation_report(
+    df: pl.DataFrame,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    y_prob: np.ndarray | None = None,
+    model_name: str = "Model",
+    symbol_col: str = "symbol",
+    regime_col: str = "volatility_30",
+    num_bins: int = 3,
+) -> dict[str, Any]:
+    """Generates a comprehensive multi-dimensional evaluation report including overall metrics,
+    confusion matrix, per-symbol breakdown, and volatility regime breakdown.
+    """
+    overall_metrics = calculate_metrics(y_true, y_pred, y_prob)
+
+    per_symbol = (
+        evaluate_per_symbol(df, y_true, y_pred, y_prob, symbol_col=symbol_col)
+        if symbol_col in df.columns
+        else {}
+    )
+
+    regimes = (
+        evaluate_by_regime(
+            df, y_true, y_pred, y_prob, regime_col=regime_col, num_bins=num_bins
+        )
+        if regime_col in df.columns
+        else {}
+    )
+
+    report: dict[str, Any] = {
+        "model_name": model_name,
+        "overall": overall_metrics,
+        "per_symbol": per_symbol,
+        "volatility_regimes": regimes,
+    }
+    return _convert_numpy_types(report)
+
+
 def _convert_numpy_types(obj: Any) -> Any:
     """Helper function to convert NumPy scalars/arrays to standard Python types for JSON serialization."""
     if isinstance(obj, (np.integer, int)):
@@ -226,7 +264,9 @@ def plot_confusion_matrix(
     return fig
 
 
-def plot_roc_curves(model_probs: dict, y_true: np.ndarray) -> plt.Figure:
+def plot_roc_curves(
+    model_probs: dict[str, np.ndarray], y_true: np.ndarray
+) -> plt.Figure:
     """Plots comparative ROC curves for multiple models.
 
     'model_probs' is a dictionary mapping model names to their prediction probabilities on the test set.

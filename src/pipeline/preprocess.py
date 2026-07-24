@@ -12,7 +12,11 @@ import duckdb
 
 import src.config as config
 from src.pipeline.schemas import get_duckdb_timestamp_sql
-from src.utils.helpers import discover_all_csvs, generate_profile_markdown
+from src.utils.helpers import (
+    discover_all_csvs,
+    generate_profile_markdown,
+    normalize_path_str,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -41,8 +45,9 @@ def run_profiling() -> None:
     # column0 = open_time (epoch milliseconds)
     # column1-4 = OHLC
     # column5 = volume
-    csv_pattern = str(config.RAW_KLINES_DIR / "spot" / "monthly" / "klines" / "*" / "1m" / "*.csv")
-    csv_pattern_str = csv_pattern.replace("\\", "/")
+    csv_pattern_str = normalize_path_str(
+        config.RAW_KLINES_DIR / "spot" / "monthly" / "klines" / "*" / "1m" / "*.csv"
+    )
 
     col0_ms = get_duckdb_timestamp_sql("column00")
 

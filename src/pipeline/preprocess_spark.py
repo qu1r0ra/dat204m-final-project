@@ -15,7 +15,11 @@ from src.pipeline.schemas import (
     RAW_KLINE_CSV_SCHEMA,
     get_spark_timestamp_ms_col,
 )
-from src.utils.helpers import discover_all_csvs, generate_profile_markdown
+from src.utils.helpers import (
+    discover_all_csvs,
+    generate_profile_markdown,
+    normalize_path_str,
+)
 from src.utils.spark_client import get_spark_session
 
 logger = logging.getLogger(__name__)
@@ -41,14 +45,13 @@ def run_profiling() -> None:
     logger.info(f"Found {len(csv_files)} raw CSV files to profile.")
 
     spark = get_spark_session()
-
-    # Define schema explicitly for faster loading and type safety
-    raw_schema = RAW_KLINE_CSV_SCHEMA
-
-    paths_list = [str(p).replace("\\", "/") for p in csv_files]
-    logger.info(f"Reading {len(paths_list)} resolved raw CSVs in Spark...")
-
     try:
+        # Define schema explicitly for faster loading and type safety
+        raw_schema = RAW_KLINE_CSV_SCHEMA
+
+        paths_list = [normalize_path_str(p) for p in csv_files]
+        logger.info(f"Reading {len(paths_list)} resolved raw CSVs in Spark...")
+
         # Load CSVs in parallel using PySpark
         df = spark.read.schema(raw_schema).csv(paths_list, header=False)
 
@@ -102,10 +105,11 @@ def run_profiling() -> None:
 
         # Collect results to driver (compact summary dataset, safe to convert to Pandas)
         df_profile = agg_df.toPandas()
-
     except Exception as e:
         logger.error(f"Failed to profile dataset via PySpark: {e}")
         raise
+    finally:
+        spark.stop()
 
     report_content = generate_profile_markdown(
         df_profile,

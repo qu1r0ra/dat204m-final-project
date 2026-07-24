@@ -7,9 +7,13 @@ and toggles for local/cloud execution modes.
 
 import logging
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
+
+from src.utils.helpers import normalize_path_str
 
 # Set up module-level logger
 logger = logging.getLogger(__name__)
@@ -210,3 +214,84 @@ elif EXECUTION_MODE == "local_raw":
     ACTIVE_DATA_PATH = str(RAW_KLINES_DIR)
 else:
     ACTIVE_DATA_PATH = str(SAMPLE_PARQUET_PATH)
+
+
+@dataclass(frozen=True)
+class PipelineConfig:
+    """Immutable, type-safe pipeline configuration container.
+
+    Enables clean dependency injection across data preprocessing, feature engineering,
+    model training, and evaluation pipelines.
+    """
+
+    execution_mode: str = "local_sample"
+    years_of_history: int = 3
+    data_frequency: str = "1m"
+    target_symbol: str = "BTCUSDT"
+    future_horizon: int = 15
+    target_threshold: float = 0.0
+    train_split_date: str = "2024-01-01"
+    val_split_date: str = "2024-07-01"
+    aws_region: str = "us-east-1"
+    aws_s3_bucket_name: str = "dat204m-binance-bigdata-hub-sg"
+    aws_s3_raw_prefix: str = "raw/"
+    aws_s3_sample_prefix: str = "sample/"
+    spark_execution_mode: str = "local"
+    spark_jars_packages: str = (
+        "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
+    )
+
+    project_root: Path = PROJECT_ROOT
+    data_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data")
+    raw_klines_dir: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "data" / "raw" / "binance_data"
+    )
+    sample_parquet_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "data" / "sample" / "binance_sample.parquet"
+    )
+    docs_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "docs")
+    data_profile_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "docs" / "data_profile.md"
+    )
+
+    feature_cols: tuple[str, ...] = tuple(FEATURE_COLS)
+    top_20_symbols: tuple[str, ...] = tuple(TOP_20_SYMBOLS)
+
+    @classmethod
+    def from_env(cls) -> "PipelineConfig":
+        """Instantiates PipelineConfig reading parameters from environment variables."""
+        return cls(
+            execution_mode=get_env_str("EXECUTION_MODE", "local_sample"),
+            years_of_history=get_env_int("YEARS_OF_HISTORY", 3),
+            data_frequency=get_env_str("DATA_FREQUENCY", "1m"),
+            target_symbol=get_env_str("TARGET_SYMBOL", "BTCUSDT"),
+            future_horizon=get_env_int("FUTURE_HORIZON", 15),
+            target_threshold=get_env_float("TARGET_THRESHOLD", 0.0),
+            train_split_date=get_env_str("TRAIN_SPLIT_DATE", "2024-01-01"),
+            aws_region=get_env_str("AWS_DEFAULT_REGION", "us-east-1"),
+            aws_s3_bucket_name=get_env_str("AWS_S3_BUCKET_NAME", "dat204m-binance-bigdata-hub-sg"),
+            spark_execution_mode=get_env_str("SPARK_EXECUTION_MODE", "local"),
+        )
+
+    @classmethod
+    def for_testing(cls, **kwargs: Any) -> "PipelineConfig":
+        """Instantiates isolated PipelineConfig with optional overrides for unit testing."""
+        default_kwargs: dict[str, Any] = {
+            "execution_mode": "local_sample",
+            "target_symbol": "BTCUSDT",
+            "future_horizon": 15,
+        }
+        default_kwargs.update(kwargs)
+        return cls(**default_kwargs)
+
+    @property
+    def active_data_path(self) -> str:
+        """Returns normalized active data path string according to execution mode."""
+        if self.execution_mode == "aws_hub":
+            return (
+                f"s3://{self.aws_s3_bucket_name}/{self.aws_s3_sample_prefix}binance_sample.parquet"
+            )
+        elif self.execution_mode == "local_raw":
+            return normalize_path_str(self.raw_klines_dir)
+        else:
+            return normalize_path_str(self.sample_parquet_path)

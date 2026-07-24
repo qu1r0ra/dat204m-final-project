@@ -78,8 +78,10 @@ def spark_session():
         .config("spark.executor.extraJavaOptions", JAVA_OPTIONS)
         .getOrCreate()
     )
+    real_stop = spark.stop
+    spark.stop = lambda: None
     yield spark
-    spark.stop()
+    real_stop()
 
 
 @pytest.fixture

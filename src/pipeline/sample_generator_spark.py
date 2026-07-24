@@ -15,7 +15,7 @@ from src.pipeline.schemas import (
     RAW_KLINE_CSV_SCHEMA,
     get_spark_timestamp_sec_col,
 )
-from src.utils.helpers import discover_symbol_csvs
+from src.utils.helpers import discover_symbol_csvs, normalize_path_str
 from src.utils.spark_client import get_spark_session
 
 logger = logging.getLogger(__name__)
@@ -36,18 +36,17 @@ def generate_sample() -> None:
         return
 
     spark = get_spark_session()
-
-    # Define schema explicitly for faster loading and type safety
-    raw_schema = RAW_KLINE_CSV_SCHEMA
-
-    # Convert paths to forward slashes for cross-platform compatibility
-    paths_list = [str(p).replace("\\", "/") for p in valid_paths]
-
-    # Define output path
-    spark_parquet_path = config.SAMPLE_DATA_DIR / "binance_sample_spark.parquet"
-    spark_parquet_path_str = str(spark_parquet_path).replace("\\", "/")
-
     try:
+        # Define schema explicitly for faster loading and type safety
+        raw_schema = RAW_KLINE_CSV_SCHEMA
+
+        # Convert paths to forward slashes for cross-platform compatibility
+        paths_list = [normalize_path_str(p) for p in valid_paths]
+
+        # Define output path
+        spark_parquet_path = config.SAMPLE_DATA_DIR / "binance_sample_spark.parquet"
+        spark_parquet_path_str = normalize_path_str(spark_parquet_path)
+
         logger.info(f"Reading {len(paths_list)} symbol CSV patterns in Spark...")
         # Spark can read multiple glob patterns from a list
         df = spark.read.schema(raw_schema).csv(paths_list, header=False)
@@ -103,6 +102,8 @@ def generate_sample() -> None:
     except Exception as e:
         logger.error(f"Failed to generate sample Parquet: {e}")
         raise
+    finally:
+        spark.stop()
 
 
 if __name__ == "__main__":

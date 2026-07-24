@@ -10,6 +10,14 @@ from pathlib import Path
 import pandas as pd
 
 
+def normalize_path_str(path: Path | str) -> str:
+    """Normalizes Path or string to cross-platform POSIX format (forward slashes).
+
+    Essential for PySpark, DuckDB, and S3 path compatibility across Operating Systems.
+    """
+    return str(Path(path)).replace("\\", "/")
+
+
 def ms_to_str(ms: int) -> str:
     """Converts epoch milliseconds to formatted UTC timestamp string."""
     try:

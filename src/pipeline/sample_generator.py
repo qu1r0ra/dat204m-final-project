@@ -12,8 +12,9 @@ import os
 import duckdb
 
 import src.config as config
+from src.exceptions import ConfigurationError
 from src.pipeline.schemas import get_duckdb_epoch_ms_sql
-from src.utils.helpers import discover_symbol_csvs
+from src.utils.helpers import discover_symbol_csvs, normalize_path_str
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,15 +32,15 @@ def generate_sample() -> None:
     if not valid_paths:
         logger.error("No valid CSV files found for any of the configured TOP_20_SYMBOLS.")
         logger.error("Please run the klines downloader script or verify that raw datasets exist.")
-        return
+        raise ConfigurationError("No valid raw CSV files found for top 20 symbols.")
 
     # Output file setup
     config.SAMPLE_PARQUET_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # Format list of valid paths into SQL string array format: ['path1', 'path2']
-    paths_str = ", ".join("'" + str(p).replace("\\", "/") + "'" for p in valid_paths)
+    paths_str = ", ".join("'" + normalize_path_str(p) + "'" for p in valid_paths)
     read_csv_src = f"[{paths_str}]"
-    parquet_path_str = str(config.SAMPLE_PARQUET_PATH).replace("\\", "/")
+    parquet_path_str = normalize_path_str(config.SAMPLE_PARQUET_PATH)
 
     col0_epoch = get_duckdb_epoch_ms_sql("column00")
     col6_epoch = get_duckdb_epoch_ms_sql("column06")

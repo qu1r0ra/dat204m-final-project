@@ -2,13 +2,14 @@
 Machine learning model training and dataset splitting pipeline.
 
 Implements chronological validation splitting, feature extraction, scaling,
-and fitting of classifiers (Logistic Regression and Random Forest).
+and fitting of classifiers (Logistic Regression and Random Forest) with seed reproducibility.
 """
 
 import logging
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import polars as pl
@@ -16,8 +17,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from typing import Any
+from src.exceptions import DataValidationError
 from src.models.evaluation import calculate_metrics, log_metrics, save_metrics_json
+from src.utils.seed import get_provenance_metadata, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,22 @@ class ModelArtifacts:
     random_forest: RandomForestClassifier
     feature_names: list[str]
     metrics: dict[str, dict[str, Any]] | None = None
+    provenance: dict[str, Any] | None = None
+
+    def to_trainer_result(self) -> Any:
+        from src.models.base import TrainerResult
+
+        return TrainerResult(
+            model_name="Sklearn Ensemble",
+            model={
+                "logistic_regression": self.logistic_regression,
+                "random_forest": self.random_forest,
+            },
+            scaler=self.scaler,
+            metrics=self.metrics or {},
+            provenance=self.provenance or {},
+            feature_names=self.feature_names,
+        )
 
 
 def split_data_chronologically(
@@ -64,10 +82,16 @@ def prepare_features_and_targets(
     df: pl.DataFrame, feature_cols: list[str], target_col: str
 ) -> tuple[np.ndarray, np.ndarray]:
     """Extracts features and target labels as NumPy arrays, dropping any remaining nulls."""
+    missing_cols = set(feature_cols + [target_col]) - set(df.columns)
+    if missing_cols:
+        raise DataValidationError(
+            f"DataFrame missing required feature/target columns: {missing_cols}"
+        )
+
     clean_df = df.select(feature_cols + [target_col]).drop_nulls()
 
     if len(clean_df) == 0:
-        raise ValueError(
+        raise DataValidationError(
             f"No data remaining after dropping null values from feature columns: {feature_cols}"
         )
 
@@ -84,11 +108,14 @@ def train_pipeline(
     X_val: np.ndarray,
     y_val: np.ndarray,
     feature_cols: list[str],
+    seed: int = 42,
 ) -> ModelArtifacts:
     """Trains a Logistic Regression and a Random Forest Classifier on scaled features.
 
-    Returns a dictionary containing the trained models, scaler, and logs.
+    Returns ModelArtifacts containing trained models, scaler, metrics, and provenance.
     """
+    set_seed(seed)
+
     logger.info("Scaling features using StandardScaler...")
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -96,7 +123,7 @@ def train_pipeline(
 
     # 1. Logistic Regression
     logger.info("Training Logistic Regression...")
-    lr = LogisticRegression(max_iter=1000, random_state=42, C=0.1)
+    lr = LogisticRegression(max_iter=1000, random_state=seed, C=0.1)
     lr.fit(X_train_scaled, y_train)
     lr_val_preds = lr.predict(X_val_scaled)
     lr_val_probs = lr.predict_proba(X_val_scaled)[:, 1]
@@ -106,7 +133,7 @@ def train_pipeline(
     # 2. Random Forest Classifier
     logger.info("Training Random Forest Classifier (this may take a few moments)...")
     rf = RandomForestClassifier(
-        n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
+        n_estimators=100, max_depth=10, random_state=seed, n_jobs=-1
     )
     rf.fit(X_train_scaled, y_train)
     rf_val_preds = rf.predict(X_val_scaled)
@@ -119,12 +146,15 @@ def train_pipeline(
         "random_forest": rf_metrics,
     }
 
+    provenance = get_provenance_metadata(seed)
+
     return ModelArtifacts(
         scaler=scaler,
         logistic_regression=lr,
         random_forest=rf,
         feature_names=feature_cols,
         metrics=metrics_dict,
+        provenance=provenance,
     )
 
 

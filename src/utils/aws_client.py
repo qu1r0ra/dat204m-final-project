@@ -14,21 +14,10 @@ import boto3
 import botocore.exceptions
 
 import src.config as config
+from src.exceptions import AWSError, CrawlerTimeoutError
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-class AWSError(Exception):
-    """Base exception for AWS client operations."""
-
-    pass
-
-
-class CrawlerTimeoutError(AWSError):
-    """Exception raised when Glue Crawler times out."""
-
-    pass
 
 
 def get_boto3_session() -> boto3.Session:
@@ -173,7 +162,10 @@ def run_glue_crawler(timeout_seconds: int = 600, poll_interval_seconds: int = 15
                 if run_status == "FAILED":
                     raise AWSError("Glue Crawler execution failed.")
                 break
-        except (botocore.exceptions.ClientError, botocore.exceptions.BotoCoreError) as e:
+        except (
+            botocore.exceptions.ClientError,
+            botocore.exceptions.BotoCoreError,
+        ) as e:
             raise AWSError(f"Failed to check crawler state: {e}") from e
         time.sleep(poll_interval_seconds)
 

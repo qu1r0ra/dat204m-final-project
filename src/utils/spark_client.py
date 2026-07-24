@@ -28,6 +28,7 @@ JAVA_OPTIONS = (
 from pyspark.sql import SparkSession  # noqa: E402
 
 import src.config as config  # noqa: E402
+from src.exceptions import SparkPipelineError  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ def get_spark_session() -> SparkSession:
             f"Failed to initialize Spark session. Verify your local Java runtime, "
             f"environment variables, and Java versions (11/17/21/26 support): {e}"
         )
-        raise e
+        raise SparkPipelineError(f"SparkSession initialization failed: {e}") from e
 
     # Adjust log level to reduce noise
     spark.sparkContext.setLogLevel("WARN")

@@ -42,9 +42,7 @@ def compute_split_boundaries(
     times = df.select("open_time").sort("open_time")
     n = len(times)
     if n == 0:
-        raise DataValidationError(
-            "Cannot compute split boundaries on an empty DataFrame."
-        )
+        raise DataValidationError("Cannot compute split boundaries on an empty DataFrame.")
 
     train_idx = int(n * train_frac)
     val_idx = int(n * (train_frac + val_frac))
@@ -137,9 +135,7 @@ def run_profiling() -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     try:
         run_profiling()
     except Exception:

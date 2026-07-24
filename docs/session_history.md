@@ -107,3 +107,12 @@ History of completed implementation tasks and archived milestones across the wor
 - **Verification Gate**: 30/30 unit tests pass cleanly in `pytest` (74.87s). Zero ruff lint errors (`uv run ruff check .`) and zero formatting discrepancies (`uv run ruff format --check .`) across 46 workspace files.
 - **Documentation Sync**: Verified and synchronized `AGENTS.md`, `README.md`, `HANDOFF.md`, data/model registries, and `docs/session_history.md`.
 - **Handoff Ready**: Codebase verified 100% production-ready for upcoming notebook execution.
+
+### ML Pipeline Feature Completeness, PySpark Alignment & Handoff Preparation (2026-07-24)
+
+- **Feature Engineering Completeness**: Integrated `compute_flow_features` (`taker_buy_ratio`, `volume_z30`, `trades_z30`, `hour_sin`, `hour_cos`) in `src/features/indicators.py` & `src/features/indicators_spark.py` to ensure all 16 features are computed and aligned across Polars and PySpark.
+- **Target Labeling & Baselines Modules**: Added `src/features/labels.py` (`add_direction_labels`), `src/models/baselines.py` (`BaselineArtifacts`, `train_baselines`, `predict_majority_class`, `predict_ols_direction`, `predict_ols_return`), `compute_split_boundaries` in `src/pipeline/preprocess.py`, and `purge_minutes` parameter in `split_data_chronologically`.
+- **PySpark Pandas Compatibility Constraint**: Constrained `pandas` to `"pandas>=2.3.0,<3.0.0"` in `pyproject.toml` and installed **pandas 2.3.3**, eliminating PySpark's `FutureWarning`.
+- **PyTorch LSTM Memory Optimization**: Refactored epoch validation pass in `src/models/lstm.py` to use lightweight batch accumulators and pre-allocated numpy arrays (`np.zeros(...)`), eliminating memory fragmentation and `MemoryError` during sequence model sweeps.
+- **Notebook Execution & Verification**: Executed `notebooks/01_eda_descriptive_analytics.ipynb` completely via `nbconvert` (1.04 MB output persisted). Updated `notebooks/02_ml_feature_engineering_training.ipynb` cell ordering.
+- **Full Verification Gate**: 30/30 unit tests pass cleanly in `pytest` (103.95s). Zero ruff formatting or linting errors across 47 workspace files. Handoff updated in [HANDOFF.md](HANDOFF.md).

@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-24                                                                                                                                              |
-| **Last session focus** | Final Objective Codebase Audit completed & verified across PyTorch, PySpark, Polars, DuckDB, AWS, CLI, and test suite; 30/30 unit tests passing cleanly |
-| **Active tasks**       | Re-run notebooks (`notebooks/02...ipynb` and `03...ipynb`) to persist trained model weights and evaluation metrics                                      |
-| **Blockers**           | None                                                                                                                                                    |
+| Field                  | Value                                                                                                                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-24                                                                                                                                                                                                       |
+| **Last session focus** | ML Pipeline Polishing & Execution Readiness: 16-feature set completed & aligned across Polars/PySpark, `pandas` constrained to `<3.0.0` (2.3.3), `train_lstm` memory optimized, 30/30 unit tests passing cleanly |
+| **Active tasks**       | Execute `notebooks/02...ipynb` and `notebooks/03...ipynb` to persist trained model weights, LSTM sweep artifacts, and final evaluation metrics                                                                   |
+| **Blockers**           | None                                                                                                                                                                                                             |
 
 ---
 
@@ -62,8 +62,8 @@ _For detailed historical progress logs and completed task timelines, see [docs/s
 
 ## 5. Implementation Queue (Handoff for Next Agent)
 
-1. **[COMPLETED] Final Objective Codebase Audit**: Final objective audit of the entire codebase completed using `context7` tools for PyTorch, PySpark, Polars, and DuckDB. All refactorings are concluded; codebase is 100% verified and approved for ML training.
-2. **Notebook Execution**: Re-run `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` to persist output cells with trained PyTorch LSTM model weights and updated evaluation metrics.
+1. **[COMPLETED] ML Pipeline Polishing & Feature Completeness**: Added `compute_flow_features` (`taker_buy_ratio`, `volume_z30`, `trades_z30`, `hour_sin`, `hour_cos`) to `src/features/indicators.py` & `src/features/indicators_spark.py`. Added `src/features/labels.py`, `src/models/baselines.py`, and `compute_split_boundaries`. Downgraded `pandas` to `<3.0.0` (`pandas==2.3.3`) resolving PySpark warnings. Optimized PyTorch `train_lstm` memory allocation.
+2. **Notebook Execution**: Execute `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` to persist outputs, trained PyTorch LSTM weights (`models/lstm_checkpoint.pt`), and test evaluation metrics.
 3. **Cloud Scale-Up (Optional)**: Execute full dataset training run on 609M-row raw data via `train_spark.py` on EMR/SageMaker.
 
 ---

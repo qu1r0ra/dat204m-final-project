@@ -19,9 +19,15 @@ An end-to-end data pipeline and machine learning pipeline for descriptive and pr
   - [4.2. Running Profiling](#42-running-profiling)
   - [4.3. Generating Downsampled Parquet](#43-generating-downsampled-parquet)
   - [4.4. Unified Pipeline CLI](#44-unified-pipeline-cli)
-  - [4.5. Running Tests](#45-running-tests)
+  - [4.5. End-to-End Pipeline Execution Guide](#45-end-to-end-pipeline-execution-guide)
+    - [Option A: Local Execution (Fast Development Run)](#option-a-local-execution-fast-development-run)
+    - [Option B: AWS Cloud Execution (Full Production Scale-Up)](#option-b-aws-cloud-execution-full-production-scale-up)
+  - [4.6. Running Tests](#46-running-tests)
 - [5. Reproducing Analytical Results](#5-reproducing-analytical-results)
-- [6. AWS Hub-and-Spoke Architecture](#6-aws-hub-and-spoke-architecture)
+- [6. AWS Hub-and-Spoke Architecture \& Cloud Deployment](#6-aws-hub-and-spoke-architecture--cloud-deployment)
+  - [6.1. Infrastructure Setup](#61-infrastructure-setup)
+  - [6.2. S3 Cross-Account Bucket Policy](#62-s3-cross-account-bucket-policy)
+  - [6.3. SageMaker Notebook Instance Bootstrapping \& Production Run Guide](#63-sagemaker-notebook-instance-bootstrapping--production-run-guide)
 
 ## 1. Introduction
 
@@ -174,36 +180,68 @@ uv run python -m src.pipeline.sample_generator_spark
 
 ### 4.4. Unified Pipeline CLI
 
-Alternatively, run end-to-end steps using the unified CLI entrypoint:
+Alternatively, run individual steps or full pipelines using the unified CLI entrypoint:
 
 ```bash
+# Data preparation steps
 uv run python -m src.cli profile
 uv run python -m src.cli sample
+
+# Model training steps
 uv run python -m src.cli train-sklearn
 uv run python -m src.cli train-lstm
 uv run python -m src.cli train-spark
+
+# Evaluation & metrics export
 uv run python -m src.cli evaluate
 ```
 
-### 4.5. Running Tests
+### 4.5. End-to-End Pipeline Execution Guide
 
-Verify pipeline logic, feature engineering, baseline/ML models, and PyTorch LSTM architectures against unit test fixtures:
+#### Option A: Local Execution (Fast Development Run)
 
-**Full test suite**:
+1. **Data Preparation**: Ensure `data/sample/binance_sample.parquet` exists (generate via step 4.3).
+2. **Train Models**:
+   ```bash
+   uv run python -m src.cli train-sklearn
+   uv run python -m src.cli train-lstm
+   ```
+3. **Run Test Evaluation**:
+   ```bash
+   uv run python -m src.cli evaluate
+   ```
+
+#### Option B: AWS Cloud Execution (Full Production Scale-Up)
+
+1. **Environment Configuration**:
+   Set environment variables in `.env` or your shell:
+   ```bash
+   EXECUTION_MODE=aws_hub
+   AWS_S3_BUCKET_NAME=dat204m-binance-bigdata-hub-sg
+   AWS_DEFAULT_REGION=ap-southeast-1
+   ```
+2. **Execute PySpark / PyTorch Cloud Pipeline**:
+   - **CLI Execution**:
+     ```bash
+     # Distributed PySpark MLlib training on cloud dataset
+     uv run python -m src.cli train-spark
+     ```
+   - **SageMaker Notebook Execution**:
+     - `notebooks/02_ml_feature_engineering_training.ipynb` has been pre-configured for production execution (`DEV_SYMBOLS = None` for all trading pairs, `max_epochs = 20` for LSTM convergence).
+     - Parquet loading automatically uses `config.load_parquet_auto()` to pull directly from S3 via `s3fs`.
+
+### 4.6. Running Tests
+
+Verify pipeline logic, feature engineering, baseline/ML models, PyTorch LSTM architectures, and S3 path loading against unit test fixtures:
 
 ```bash
+# Full automated test suite (30 unit tests)
 uv run pytest
-```
 
-**Fast unit tests (excluding Spark integration)**:
-
-```bash
+# Fast unit tests (excluding PySpark integration)
 uv run pytest -m "not spark"
-```
 
-**Spark pipeline integration tests**:
-
-```bash
+# PySpark integration tests
 uv run pytest tests/test_spark_pipelines.py
 ```
 
@@ -211,14 +249,39 @@ uv run pytest tests/test_spark_pipelines.py
 
 Execute the Jupyter Notebooks located in `notebooks/` in sequential order:
 
-1. **`01_eda_descriptive_analytics.ipynb`**: Imports the downsampled Parquet dataset, calculates statistical metrics, and generates 5 exploratory visualizations.
-2. **`02_ml_feature_engineering_training.ipynb`**: Engineers technical indicators (moving averages, returns, signals) using Polars and trains machine learning models.
-3. **`03_ml_evaluation_error_analysis.ipynb`**: Computes validation and test classification metrics (accuracy, precision, recall, confusion matrix) and conducts model error analysis.
+1. **`01_eda_descriptive_analytics.ipynb`**: [notebooks/01_eda_descriptive_analytics.ipynb](notebooks/01_eda_descriptive_analytics.ipynb)
+   - Profiles dataset distributions, missingness, stationarity, and feature correlations.
+2. **`02_ml_feature_engineering_training.ipynb`**: [notebooks/02_ml_feature_engineering_training.ipynb](notebooks/02_ml_feature_engineering_training.ipynb)
+   - Pre-configured for production: `DEV_SYMBOLS = None` (all trading pairs) and `max_epochs = 20` (full training sweep).
+   - Engineers 16 canonical features, applies chronological splitting with 15-minute purging, trains 5 benchmark models, and tunes decision thresholds.
+   - For fast local dev iterations, set `DEV_SYMBOLS = ["BTCUSDT", "ETHUSDT"]` and `max_epochs = 2`.
+3. **`03_ml_evaluation_error_analysis.ipynb`**: [notebooks/03_ml_evaluation_error_analysis.ipynb](notebooks/03_ml_evaluation_error_analysis.ipynb)
+   - Evaluates trained models on held-out test data, generates ROC curves and confusion matrices, analyzes volatility regime performance, and exports metrics.
 
-## 6. AWS Hub-and-Spoke Architecture
+## 6. AWS Hub-and-Spoke Architecture & Cloud Deployment
 
-For cloud execution, this project uses an AWS Hub-and-Spoke model:
+### 6.1. Infrastructure Setup
 
-- **Hub Account (Central S3 Bucket):** Houses the main `/raw/` and `/sample/` datasets. S3 resource-based bucket policies allow read-only access to specific teammate spoke accounts. A Glue Crawler catalogs the tables.
-- **Spoke Accounts:** Teammates query the Glue Catalog tables via Amazon Athena from their respective AWS consoles.
-- **SageMaker Run:** Once code is verified locally on the sample Parquet file, it can be executed in the Hub AWS account against the full raw dataset for scale-up training.
+Deploy the hub infrastructure using CloudFormation template [aws/hub_infrastructure.yaml](aws/hub_infrastructure.yaml):
+
+```bash
+aws cloudformation create-stack \
+  --stack-name dat204m-binance-hub-stack \
+  --template-body file://aws/hub_infrastructure.yaml \
+  --capabilities CAPABILITY_IAM
+```
+
+### 6.2. S3 Cross-Account Bucket Policy
+
+Apply [aws/s3_bucket_policy.json](aws/s3_bucket_policy.json) to grant read-only access to teammate spoke accounts while preserving central encryption defaults.
+
+### 6.3. SageMaker Notebook Instance Bootstrapping & Production Run Guide
+
+1. **Lifecycle Configuration**: In AWS SageMaker Console -> **Lifecycle configurations**, create a startup script using [aws/sagemaker_bootstrap.sh](aws/sagemaker_bootstrap.sh).
+2. **Instance Launch**: Create a SageMaker Notebook Instance (`ml.g5.xlarge` for GPU acceleration or `ml.m5.2xlarge` / `ml.m5.4xlarge` for CPU compute). Attach the lifecycle configuration.
+3. **Automated Bootstrap**: Upon launch, `sagemaker_bootstrap.sh` automatically installs `uv`, syncs project dependencies (including `s3fs` and `pyspark`), and registers the `Python (DAT204M)` kernel.
+4. **Pipeline Execution**:
+   - Open Jupyter notebook `notebooks/02_ml_feature_engineering_training.ipynb`.
+   - Set `.env` to `EXECUTION_MODE=aws_hub`.
+   - Run all cells sequentially. The notebook reads cloud data from S3, trains all 5 classifiers across all symbols with full 20-epoch sweeps, and exports saved artifacts to `models/`.
+   - Open `notebooks/03_ml_evaluation_error_analysis.ipynb` and run all cells to evaluate the trained models on the held-out test partition.

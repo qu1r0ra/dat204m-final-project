@@ -9,18 +9,16 @@ to docs/data_profile.md.
 import logging
 
 import duckdb
+import polars as pl
 
 import src.config as config
+from src.exceptions import DataValidationError
 from src.pipeline.schemas import get_duckdb_timestamp_sql
 from src.utils.helpers import (
     discover_all_csvs,
     generate_profile_markdown,
     normalize_path_str,
 )
-
-import polars as pl
-
-from src.exceptions import DataValidationError
 
 # Configure logging
 logger = logging.getLogger(__name__)

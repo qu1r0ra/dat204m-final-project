@@ -13,7 +13,12 @@ import polars as pl
 
 import src.config as config
 from src.exceptions import ConfigurationError, DataValidationError
-from src.features.indicators import compute_indicators, compute_stationary_features
+from src.features.indicators import (
+    compute_flow_features,
+    compute_indicators,
+    compute_stationary_features,
+)
+from src.features.labels import add_direction_labels
 from src.models.evaluation import (
     generate_evaluation_report,
     log_metrics,
@@ -44,35 +49,26 @@ logger = logging.getLogger("src.cli")
 def _load_and_prepare_data(
     data_path: str | Path | None = None, target_symbol: str = "BTCUSDT"
 ) -> pl.DataFrame:
-    """Helper to load parquet dataset, filter by target symbol, compute indicators and targets."""
-    path_to_load = Path(data_path) if data_path else Path(config.ACTIVE_DATA_PATH)
-    if not path_to_load.exists():
-        logger.error(
-            f"Parquet dataset file not found at {path_to_load}. "
-            "Run 'python -m src.cli sample' first or provide a valid --data-path."
-        )
-        raise ConfigurationError(f"Dataset path does not exist: {path_to_load}")
+    """Helper to load parquet dataset, filter by target symbol, compute indicators and targets.
+
+    Supports both local filesystem paths and S3 URIs (s3://) transparently
+    via the centralized config.load_parquet_auto() utility.
+    """
+    path_to_load = str(data_path) if data_path else config.ACTIVE_DATA_PATH
 
     logger.info(f"Loading data from {path_to_load}...")
-    df = pl.read_parquet(path_to_load)
+    df = config.load_parquet_auto(path_to_load)
     df_target = df.filter(pl.col("symbol") == target_symbol) if "symbol" in df.columns else df
 
     logger.info(f"Computing technical indicators for target symbol '{target_symbol}'...")
     df_ind = compute_indicators(df_target)
     df_stat = compute_stationary_features(df_ind)
+    df_flow = compute_flow_features(df_stat)
 
-    # Compute binary classification target (future horizon)
-    horizon = config.FUTURE_HORIZON
-    threshold = config.TARGET_THRESHOLD
-    df_prepared = (
-        df_stat.with_columns(
-            (pl.col("close").shift(-horizon).over("symbol") / pl.col("close") - 1.0).alias(
-                "future_return"
-            )
-        )
-        .with_columns((pl.col("future_return") > threshold).cast(pl.Int32).alias("target"))
-        .drop_nulls()
-    )
+    # Binary direction label using the canonical label function
+    df_prepared = add_direction_labels(
+        df_flow, horizon=config.FUTURE_HORIZON, threshold=config.TARGET_THRESHOLD
+    ).drop_nulls()
 
     logger.info(f"Prepared dataset shape: {df_prepared.shape}")
     return df_prepared
@@ -201,7 +197,10 @@ class TrainSparkCommandHandler(BaseCommandHandler):
 
         spark = get_spark_session()
         try:
-            data_path = normalize_path_str(Path(args.data_path or config.ACTIVE_DATA_PATH))
+            raw_path = args.data_path or config.ACTIVE_DATA_PATH
+            data_path = (
+                raw_path if config.is_s3_path(raw_path) else normalize_path_str(Path(raw_path))
+            )
             logger.info(f"Loading PySpark data from {data_path}...")
 
             df_spark = spark.read.parquet(data_path)

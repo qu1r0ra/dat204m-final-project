@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import polars as pl
 from dotenv import load_dotenv
 
 from src.utils.helpers import normalize_path_str
@@ -214,6 +215,54 @@ elif EXECUTION_MODE == "local_raw":
     ACTIVE_DATA_PATH = str(RAW_KLINES_DIR)
 else:
     ACTIVE_DATA_PATH = str(SAMPLE_PARQUET_PATH)
+
+
+def is_s3_path(path: str | Path) -> bool:
+    """Returns True if the given path is an S3 URI (s3:// or s3a://)."""
+    return str(path).startswith(("s3://", "s3a://"))
+
+
+def get_s3_storage_options() -> dict[str, str]:
+    """Returns Polars-compatible storage_options for S3 reads using current AWS config.
+
+    On SageMaker instances with IAM roles, credentials are resolved automatically
+    and this returns only the region. For local development with explicit keys,
+    the access key and secret key are passed through.
+    """
+    opts: dict[str, str] = {}
+    if AWS_REGION:
+        opts["region"] = AWS_REGION
+    if AWS_ACCESS_KEY_ID and not AWS_ACCESS_KEY_ID.startswith("your_"):
+        opts["aws_access_key_id"] = AWS_ACCESS_KEY_ID
+    if AWS_SECRET_ACCESS_KEY and not AWS_SECRET_ACCESS_KEY.startswith("your_"):
+        opts["aws_secret_access_key"] = AWS_SECRET_ACCESS_KEY
+    if AWS_SESSION_TOKEN and not AWS_SESSION_TOKEN.startswith("your_"):
+        opts["aws_session_token"] = AWS_SESSION_TOKEN
+    return opts
+
+
+def load_parquet_auto(path: str | Path, columns: list[str] | None = None) -> pl.DataFrame:
+    """Loads a Parquet dataset from a local path or S3 URI transparently.
+
+    For S3 URIs (s3://), uses the project's AWS credentials via storage_options.
+    For local paths, reads directly from the filesystem.
+
+    Requires the `s3fs` package for S3 reads (installed via pyproject.toml).
+    """
+    path_str = str(path)
+    if is_s3_path(path_str):
+        storage_options = get_s3_storage_options()
+        logger.info(f"Loading Parquet from S3: {path_str}")
+        return pl.read_parquet(path_str, columns=columns, storage_options=storage_options)
+    else:
+        local_path = Path(path_str)
+        if not local_path.exists():
+            raise FileNotFoundError(
+                f"Parquet dataset not found at {local_path}. "
+                "Run 'uv run python -m src.cli sample' first or provide a valid path."
+            )
+        logger.info(f"Loading Parquet from local: {local_path}")
+        return pl.read_parquet(local_path, columns=columns)
 
 
 @dataclass(frozen=True)

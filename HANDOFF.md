@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-24                                                                                                                                                                                                       |
-| **Last session focus** | ML Pipeline Polishing & Execution Readiness: 16-feature set completed & aligned across Polars/PySpark, `pandas` constrained to `<3.0.0` (2.3.3), `train_lstm` memory optimized, 30/30 unit tests passing cleanly |
-| **Active tasks**       | Execute `notebooks/02...ipynb` and `notebooks/03...ipynb` to persist trained model weights, LSTM sweep artifacts, and final evaluation metrics                                                                   |
-| **Blockers**           | None                                                                                                                                                                                                             |
+| Field                  | Value                                                                                                                                                                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-25                                                                                                                                                                                                                                                                             |
+| **Last session focus** | Codebase Hygiene & Ruff Format Pass: Fixed notebook 03 string syntax error & E402 import position, sorted notebook 02 imports (I001), formatted codebase with `ruff format .`, verified `ruff check .` (0 errors), and confirmed all 30 unit tests pass. Prepared AWS execution guide. |
+| **Active tasks**       | AWS Cloud Scale-Up Pipeline Execution (SageMaker Notebook Instance or CLI PySpark on SageMaker/EMR).                                                                                                                                                                                   |
+| **Blockers**           | None                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -43,6 +43,7 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Project Overview**: See [project-overview.mdc](.cursor/rules/project-overview.mdc).
 - **Data & Directory Structure**: All raw and output data must reside in `data/` (git-ignored). See [data-organization.mdc](.cursor/rules/data-organization.mdc) and [data_registry.md](.cursor/project/data_registry.md).
 - **AWS Hub-and-Spoke & Security**: Encryption and teammate access policies are defined in [data-organization.mdc](.cursor/rules/data-organization.mdc).
+- **AWS Cloud Execution Strategy**: Full ML dataset training (609M rows / 80.8GB) is configured to run inside AWS (SageMaker Notebook Instance or SageMaker/EMR job) using `EXECUTION_MODE=aws_hub` in `.env` and `aws/sagemaker_bootstrap.sh`. Notebook pathing dynamically resolves via `src/config.py`.
 - **Tech Stack & Computations**: PySpark, DuckDB, Polars, PyTorch, and configuration guidelines are defined in [tech-stack.mdc](.cursor/rules/tech-stack.mdc).
 - **Workflow & Rules**: Review [agent-workflows.mdc](.cursor/rules/agent-workflows.mdc) and [AGENTS.md](AGENTS.md).
 
@@ -51,10 +52,10 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 ## 4. Current Status Overview
 
 - **Ingestion & S3 Pipeline**: 21,932 raw CSV files (~80.8 GB, 609M records) downloaded, stored in `data/raw/`, synced to S3, and cataloged in AWS Glue database (`binance_hub_db`). Downsampled 20-symbol Parquet sample (30.6M records) generated and cataloged.
-- **Cloud Infrastructure**: CloudFormation stack `dat204m-binance-hub-stack` deployed with cross-account spoke access policy.
+- **Cloud Infrastructure**: CloudFormation stack `dat204m-binance-hub-stack` deployed with cross-account spoke access policy. `aws/sagemaker_bootstrap.sh` ready for SageMaker Notebook kernel registration and dependency sync.
 - **Distributed PySpark Engine**: PySpark pipelines operational for profiling, sample generation, feature engineering, and MLlib distributed training. Dynamic `winutils.exe` provisioning integrated for Windows compatibility.
 - **Modeling & Feature Engineering**: 16-feature set configured. Classifiers evaluated (Majority Floor 54.35%, OLS 50.84%, LogReg 54.76%, RF 55.04% AUC 0.551, PyTorch LSTM Sequence Classifier passing all unit tests).
-- **Code Quality & Architecture**: 9-Pillar Refactoring Master Plan fully executed. Comprehensive line-by-line codebase audit findings in [docs/audits/final_refactors.md](docs/audits/final_refactors.md) fully resolved. All 30 unit tests pass in pytest with zero ruff lint or formatting errors. Final objective audit completed with `context7` library docs reference.
+- **Code Quality & Verification**: All 30 unit tests pass in `pytest` cleanly in 75s with zero ruff lint or formatting errors.
 
 _For detailed historical progress logs and completed task timelines, see [docs/session_history.md](docs/session_history.md)._
 
@@ -62,9 +63,16 @@ _For detailed historical progress logs and completed task timelines, see [docs/s
 
 ## 5. Implementation Queue (Handoff for Next Agent)
 
-1. **[COMPLETED] ML Pipeline Polishing & Feature Completeness**: Added `compute_flow_features` (`taker_buy_ratio`, `volume_z30`, `trades_z30`, `hour_sin`, `hour_cos`) to `src/features/indicators.py` & `src/features/indicators_spark.py`. Added `src/features/labels.py`, `src/models/baselines.py`, and `compute_split_boundaries`. Downgraded `pandas` to `<3.0.0` (`pandas==2.3.3`) resolving PySpark warnings. Optimized PyTorch `train_lstm` memory allocation.
-2. **Notebook Execution**: Execute `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` to persist outputs, trained PyTorch LSTM weights (`models/lstm_checkpoint.pt`), and test evaluation metrics.
-3. **Cloud Scale-Up (Optional)**: Execute full dataset training run on 609M-row raw data via `train_spark.py` on EMR/SageMaker.
+1. **[COMPLETED] Code Check & Unit Test Verification**: Executed `uv run pytest`, verifying 30/30 unit tests pass cleanly. Confirmed AWS cloud execution strategy via SageMaker Notebook Instance and dynamic `src/config.py` path switching.
+2. **[COMPLETED] Notebook Presentation & Explanatory Refinement**: Refactored `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` with plain-language feature breakdowns, non-technical commentary, and Mermaid visual diagrams.
+3. **[COMPLETED] End-to-End Pipeline Documentation**: Updated `README.md` with step-by-step local and AWS cloud execution guides (including SageMaker Lifecycle Configuration bootstrapping).
+4. **[COMPLETED] Independent Audit of End-to-End ML Pipeline Completeness**: Conducted full code-level audit of all source files, notebooks, and AWS infrastructure. Fixed 6 critical issues (S3 path handling, missing flow features in CLI, duplicated label logic, notebook guards) and 4 moderate issues (scaler scope, lint, readability). Added `s3fs` dependency, `config.load_parquet_auto()` utility, and plain-language notebook content for non-technical audiences.
+5. **[COMPLETED] Pre-Flight Production Configuration**: Configured `notebooks/02_ml_feature_engineering_training.ipynb` to use production defaults (`DEV_SYMBOLS = None` for all 20 pairs, `max_epochs = 20` for LSTM convergence). Added S3-aware data loading via `config.load_parquet_auto()`.
+6. **Next Agent Action Guide (AWS Production Execution)**:
+   - **Step 1**: Confirm AWS credentials & environment variables in `.env` (`EXECUTION_MODE=aws_hub`, `AWS_S3_BUCKET_NAME=dat204m-binance-bigdata-hub-sg`, `AWS_DEFAULT_REGION=ap-southeast-1`).
+   - **Step 2**: If running on SageMaker, guide the user to launch a Notebook Instance (`ml.g5.xlarge` for GPU or `ml.m5.4xlarge` for CPU) using `aws/sagemaker_bootstrap.sh`.
+   - **Step 3**: Execute `notebooks/02_ml_feature_engineering_training.ipynb` (or CLI `uv run python -m src.cli train-spark`) to train across all 20 symbols with 20 epochs.
+   - **Step 4**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` (or CLI `uv run python -m src.cli evaluate`) to generate final test partition evaluation metrics and visualizations.
 
 ---
 

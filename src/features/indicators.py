@@ -130,7 +130,8 @@ def compute_stationary_features(df: FrameType) -> FrameType:
 def compute_flow_features(df: FrameType) -> FrameType:
     """Computes order-flow ratio, volume/trades z-scores, and cyclical hour encodings.
 
-    Assumes input contains columns: symbol, open_time, volume, number_of_trades, taker_buy_base_asset_volume.
+    Assumes input contains columns: symbol, open_time, volume, number_of_trades,
+    taker_buy_base_asset_volume.
     Supports both pl.DataFrame and pl.LazyFrame inputs.
     Returns the DataFrame or LazyFrame with flow feature columns added.
     """

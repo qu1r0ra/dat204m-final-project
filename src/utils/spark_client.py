@@ -41,6 +41,9 @@ def setup_spark_env() -> None:
     os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
     os.environ["PYSPARK_PYTHON"] = sys.executable
     os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+    # Remove HADOOP_CONF_DIR to prevent loading SageMaker system /etc/hadoop/conf/core-site.xml
+    # which contains unparseable duration strings like "60s" and "24h"
+    os.environ.pop("HADOOP_CONF_DIR", None)
     config.configure_java_home()
 
 
@@ -112,8 +115,9 @@ def get_spark_session() -> SparkSession:
                 "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
             )
             .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            # Override SageMaker/EMR system core-site.xml "60s" string to avoid NumberFormatException in Hadoop
+            # Override SageMaker/EMR system core-site.xml duration strings ("60s", "24h") with numeric values
             .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60")
+            .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400")
             .config("spark.hadoop.fs.s3a.connection.timeout", "200000")
             .config("spark.hadoop.fs.s3a.connection.establish.timeout", "30000")
         )

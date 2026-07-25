@@ -10,30 +10,30 @@ set -e
 
 echo "=== AWS SageMaker Bootstrapping Init ==="
 
+# Execute bootstrapping as ec2-user in the background to prevent SageMaker 5-minute timeout limit
+sudo -u ec2-user -i bash -c '
+set -e
+export PATH="$HOME/.local/bin:$PATH"
+
 # 1. Install Astral uv (if not installed)
 if ! command -v uv &> /dev/null; then
     echo "Installing astral uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Add uv to local path
     export PATH="$HOME/.local/bin:$PATH"
-    echo "uv installed successfully."
-else
-    echo "uv is already installed."
 fi
 
-# Make sure PATH update is preserved for sub-shells
-export PATH="$HOME/.local/bin:$PATH"
-
-# 2. Sync project dependencies from pyproject.toml
-if [ -f "pyproject.toml" ]; then
-    echo "Synchronizing workspace dependencies..."
-    uv sync
-else
-    echo "Warning: pyproject.toml not found in the current directory. Skipping uv sync."
+# 2. Navigate to repo if cloned and sync dependencies
+REPO_DIR="$HOME/SageMaker/dat204m-final-project"
+if [ -d "$REPO_DIR" ]; then
+    cd "$REPO_DIR"
+    if [ -f "pyproject.toml" ]; then
+        echo "Synchronizing workspace dependencies..."
+        uv sync
+        echo "Registering custom environment as Jupyter Kernel..."
+        uv run python -m ipykernel install --user --name="dat204m-final-project" --display-name="Python (DAT204M)"
+    fi
 fi
+' > /home/ec2-user/bootstrap.log 2>&1 &
 
-# 3. Register Jupyter kernel
-echo "Registering custom environment as Jupyter Kernel..."
-uv run python -m ipykernel install --user --name="dat204m-final-project" --display-name="Python (DAT204M)"
-
-echo "=== SageMaker Bootstrapping Completed Successfully ==="
+echo "Bootstrapping process launched in background. Check /home/ec2-user/bootstrap.log for progress."
+echo "=== SageMaker Bootstrapping Initiated Successfully ==="

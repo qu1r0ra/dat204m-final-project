@@ -45,3 +45,14 @@ _Results evaluated on validation partition and test partition across the 16-feat
 | **Random Forest (0.5)** | Test (4.6M) | 0.500 | 0.5504 | 0.5521 | 0.1912 | 0.2840 | 0.5218 | 0.5510 |
 | **Random Forest (tuned)** | Test (4.6M) | 0.480 | 0.5315 | 0.4877 | 0.4820 | 0.4848 | 0.5361 | 0.5510 |
 | **PyTorch LSTM (tuned)** | Validation | 0.485 | 0.5328 | 0.4891 | 0.4854 | 0.4872 | 0.5370 | 0.5524 |
+
+---
+
+## 5. Artifact Serialization & Observability Logging
+
+- **Scikit-Learn / Baseline Artifacts**: `models/sklearn/ml_artifacts.pkl` (contains scaler, trained models, tuned thresholds, and baseline objects).
+- **PyTorch Checkpoint**: `models/lstm_checkpoint.pt` (state dict, scaler, hyperparameters, best threshold).
+- **PyTorch Sidecar JSON**: `models/lstm_checkpoint_metrics.json`.
+- **Training Observability Log**: `models/lstm_training_log.jsonl` (JSON Lines log updated live per epoch with timestamp, elapsed time, loss, accuracy, precision, recall, F1, balanced accuracy, ROC-AUC, and early stopping state).
+- **Evaluation Summary Report**: `docs/evaluation_report.json`.
+

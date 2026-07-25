@@ -112,6 +112,10 @@ def get_spark_session() -> SparkSession:
                 "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
             )
             .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            # Override SageMaker/EMR system core-site.xml "60s" string to avoid NumberFormatException in Hadoop
+            .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60")
+            .config("spark.hadoop.fs.s3a.connection.timeout", "200000")
+            .config("spark.hadoop.fs.s3a.connection.establish.timeout", "30000")
         )
         if config.AWS_REGION:
             builder = builder.config(

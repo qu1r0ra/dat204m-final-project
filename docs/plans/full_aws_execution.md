@@ -7,6 +7,18 @@ This guide provides step-by-step, unambiguous instructions for executing the ful
 
 ---
 
+## Target Hardware & Environment Configuration
+
+- **Instance Type**: `ml.m5.2xlarge` (8 vCPUs, 32 GB RAM) — _Cost-Effective Standard CPU_
+- **Platform Identifier**: `Amazon Linux 2023, Jupyter Lab 4`
+- **Execution Mode**: Cloud Hub (`EXECUTION_MODE=aws_hub`)
+- **S3 Bucket**: `dat204m-binance-bigdata-hub-sg`
+- **AWS Region**: `ap-southeast-1`
+- **SageMaker IAM Role**: `SageMaker-sagemaker-binance-hub-role-2`
+- **Role ARN**: `arn:aws:iam::872891100013:role/service-role/SageMaker-sagemaker-binance-hub-role-2`
+
+---
+
 ## Dataset Architecture & S3 Storage
 
 The project dataset in AWS S3 is structured into two main tiers:
@@ -18,54 +30,109 @@ The project dataset in AWS S3 is structured into two main tiers:
 
 ---
 
-## Environment & S3 Status
-
-- **AWS Execution Mode**: Cloud Hub (`EXECUTION_MODE=aws_hub`).
-- **AWS Account Identity**: `arn:aws:iam::872891100013:user/qu1r0ra` (Region: `ap-southeast-1`).
-- **S3 Bucket**: `dat204m-binance-bigdata-hub-sg`
-
----
-
 ## Step-by-Step AWS SageMaker AI Pipeline Execution
 
-### Step 1: Create Lifecycle Configuration in AWS SageMaker AI
+### Step 0: Set Up SageMaker IAM Role via Amazon SageMaker AI Role Manager
 
-1. Log in to the **AWS Management Console** and search for **Amazon SageMaker AI**.
-2. In the left-hand navigation pane under **Admin configurations** (or **Notebook**), click **Lifecycle configurations**.
-3. Click **Create configuration**.
-4. Set the details:
-   - **Type**: Select **Notebook instance**.
-   - **Name**: `dat204m-bootstrap-lcc`
-5. In the **Start notebook** script tab (or **Create notebook**), paste the exact script contents of [`aws/sagemaker_bootstrap.sh`](../../aws/sagemaker_bootstrap.sh).
-6. Click **Create configuration**.
+To create a persona-based IAM Execution Role with bucket access using **Amazon SageMaker Role Manager**:
 
-> [!TIP]
-> `aws/sagemaker_bootstrap.sh` automatically installs `uv`, syncs project dependencies (including `s3fs` and `pyspark`), and registers the custom **`Python (DAT204M)`** kernel inside Jupyter.
+1. Log in to the **Amazon SageMaker AI Console**.
+2. In the left navigation menu (under **Admin configurations** or **Governance**), click **Role Manager**.
+3. Click **Create role**.
+4. **Step 1: Role Details**:
+   - **Role name**: `SageMaker-sagemaker-binance-hub-role-2`
+   - **Persona**: Select **Data Scientist** (pre-configures ML activities for notebook access, S3 data loading, model training, and experiment tracking).
+   - Click **Next**.
+5. **Step 2: Configure ML Activities**:
+   - Ensure the **Access S3 buckets** and **Run processing/training jobs** activities are enabled.
+   - Click **Next**.
+6. **Step 3: Network and Encryption**:
+   - Keep default VPC/encryption settings. Click **Next**.
+7. **Step 4: Add Additional Policies & S3 Access**:
+   - Under **S3 bucket access**, add custom bucket access for `dat204m-binance-bigdata-hub-sg`.
+   - Alternatively, attach a Customer Managed Policy granting explicit read/write access:
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "s3:GetObject",
+             "s3:PutObject",
+             "s3:ListBucket",
+             "s3:DeleteObject"
+           ],
+           "Resource": [
+             "arn:aws:s3:::dat204m-binance-bigdata-hub-sg",
+             "arn:aws:s3:::dat204m-binance-bigdata-hub-sg/*"
+           ]
+         }
+       ]
+     }
+     ```
+8. **Step 5: Review & Submit**:
+   - Review permissions and click **Submit**. Created role ARN: `arn:aws:iam::872891100013:role/service-role/SageMaker-sagemaker-binance-hub-role-2`.
 
 ---
 
-### Step 2: Launch Notebook Instance in AWS SageMaker AI
+### Step 1: Launch Notebook Instance in AWS SageMaker AI
 
-1. In the **Amazon SageMaker AI** console left menu, go to **Notebook** -> **Notebook instances**.
-2. Click **Create notebook instance**.
-3. Configure the instance:
+1. Go to **Notebook** -> **Notebook instances** -> Click **Create notebook instance**.
+2. Settings:
    - **Notebook instance name**: `dat204m-production-node`
-   - **Notebook instance type**: `ml.g5.xlarge` (for GPU acceleration) or `ml.m5.4xlarge` (for high-CPU compute).
-   - **Platform identifier**: `Amazon Linux 2, Jupyter Lab`
-4. Expand **Additional configuration**:
-   - **Lifecycle configuration**: Select `dat204m-bootstrap-lcc`.
-5. Under **Permissions and encryption**:
-   - **IAM Role**: Choose an IAM role with S3 read/write permissions to bucket `dat204m-binance-bigdata-hub-sg`.
-6. Click **Create notebook instance**.
-7. Wait ~3–5 minutes until the Instance Status turns **InService**.
+   - **Notebook instance type**: `ml.m5.2xlarge` (8 vCPUs, 32 GB RAM)
+   - **Platform identifier**: `Amazon Linux 2023, Jupyter Lab 4`
+   - **Volume size (GB)**: Set to **`35 GB`** (or `50 GB` - required for PyTorch CUDA wheels and PySpark packages).
+3. Under **Git repositories** (optional automated clone):
+   - Select **Clone a public Git repository** and enter `https://github.com/qu1r0ra/dat204m-final-project.git`.
+4. Under **Permissions and encryption**:
+   - **IAM Role**: Select `SageMaker-sagemaker-binance-hub-role-2` (`arn:aws:iam::872891100013:role/service-role/SageMaker-sagemaker-binance-hub-role-2`).
+5. Click **Create notebook instance**.
+6. Wait ~3–5 minutes until Status changes to **InService**.
 
 ---
 
-### Step 3: Open JupyterLab & Select Kernel
+### Step 2: Open JupyterLab & Bootstrap Environment
 
 1. Next to `dat204m-production-node`, click **Open JupyterLab**.
-2. Open the repository folder: `dat204m-final-project`.
-3. In JupyterLab, check the kernel selector dropdown (top right) and select **`Python (DAT204M)`**.
+2. Open a Terminal in JupyterLab (`File` -> `New` -> `Terminal`).
+3. If the repository was not automatically attached, clone it into persistent storage:
+   ```bash
+   cd ~/SageMaker
+   git clone https://github.com/qu1r0ra/dat204m-final-project.git
+   ```
+4. Navigate into the project and install dependencies / register the Jupyter kernel:
+
+   ```bash
+   cd ~/SageMaker/dat204m-final-project
+   export PATH="$HOME/.local/bin:$PATH"
+
+   # 1. Install uv (if not already installed)
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   source $HOME/.local/bin/env 2>/dev/null || export PATH="$HOME/.local/bin:$PATH"
+
+   # 2. Sync virtual environment & register Jupyter kernel
+   uv sync
+   uv run python -m ipykernel install --user --name="dat204m-final-project" --display-name="Python (DAT204M)"
+
+   # 3. Create .env configuration file for AWS Hub execution mode
+   cat << 'EOF' > .env
+   EXECUTION_MODE=aws_hub
+   SPARK_EXECUTION_MODE=local
+   AWS_DEFAULT_REGION=ap-southeast-1
+   AWS_S3_BUCKET_NAME=dat204m-binance-bigdata-hub-sg
+   YEARS_OF_HISTORY=3
+   DATA_FREQUENCY=1m
+   TARGET_SYMBOL=BTCUSDT
+   FUTURE_HORIZON=15
+   TARGET_THRESHOLD=0.0
+   TRAIN_SPLIT_DATE=2024-01-01
+   EOF
+   ```
+
+5. Open your target notebook (e.g. `notebooks/01_eda_descriptive_analytics.ipynb`).
+6. In the top-right kernel selector dropdown, select **`Python (DAT204M)`**.
 
 ---
 
@@ -73,23 +140,19 @@ The project dataset in AWS S3 is structured into two main tiers:
 
 1. Open notebook [`notebooks/01_eda_descriptive_analytics.ipynb`](../../notebooks/01_eda_descriptive_analytics.ipynb).
 2. Select **Run** -> **Run All Cells**.
-3. The notebook profiles the full dataset metrics, volume distributions, volatility regimes, and cross-asset correlations across all pairs.
+3. Profiles dataset metrics, volume distributions, volatility regimes, and cross-asset correlations across all pairs.
 
 ---
 
 ### Step 5: Execute Phase 2 (Machine Learning Feature Engineering & Training)
 
 1. Open notebook [`notebooks/02_ml_feature_engineering_training.ipynb`](../../notebooks/02_ml_feature_engineering_training.ipynb).
-2. Confirm production configuration parameters in Cell 2:
+2. Confirm production parameters in Cell 2:
    - `EXECUTION_MODE = "aws_hub"`
    - `DEV_SYMBOLS = None` (processes all 20 liquid cryptocurrency trading pairs: 30.65M rows)
-   - `max_epochs = 20` (full PyTorch LSTM convergence sweep)
+   - `max_epochs = 20` (full PyTorch LSTM sweep; automatically uses CPU execution)
 3. Select **Run** -> **Run All Cells**.
-4. The notebook will:
-   - Fetch data directly from `s3://dat204m-binance-bigdata-hub-sg/sample/binance_sample.parquet` using `load_parquet_auto()`.
-   - Calculate 16 technical features across 30.65M rows.
-   - Train baseline classifiers, Scikit-Learn models, PySpark MLlib, and PyTorch LSTM.
-   - Save trained model checkpoints to `models/sklearn/ml_artifacts.pkl` and `models/lstm_model.pt`.
+4. Model artifacts are saved to `models/sklearn/ml_artifacts.pkl` and `models/lstm_model.pt`.
 
 ---
 
@@ -97,10 +160,7 @@ The project dataset in AWS S3 is structured into two main tiers:
 
 1. Open notebook [`notebooks/03_ml_evaluation_error_analysis.ipynb`](../../notebooks/03_ml_evaluation_error_analysis.ipynb).
 2. Select **Run** -> **Run All Cells**.
-3. The notebook will:
-   - Evaluate all models on held-out test data (Jan 2024 - July 2024).
-   - Render ROC curves, Precision-Recall curves, confusion matrices, and feature importance bar charts.
-   - Export evaluation metrics to `docs/evaluation_report.json`.
+3. Renders ROC curves, confusion matrices, and exports metrics to `docs/evaluation_report.json`.
 
 ---
 

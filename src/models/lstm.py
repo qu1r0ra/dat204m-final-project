@@ -5,7 +5,10 @@ LSTMClassifier architecture, training loop with early stopping, threshold tuning
 prediction utilities, and artifact serialization routines.
 """
 
+import json
 import logging
+import time
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -13,9 +16,9 @@ import numpy as np
 import polars as pl
 import torch
 import torch.nn as nn
-from sklearn.metrics import balanced_accuracy_score
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from src.config import FEATURE_COLS
 from src.exceptions import DataValidationError
@@ -126,6 +129,13 @@ class LSTMClassifier(nn.Module):
         return logits
 
 
+def _append_jsonl(filepath: Path, record: dict[str, Any]) -> None:
+    """Appends a single JSON record as one line to a JSONL file."""
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    with open(filepath, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, default=str) + "\n")
+
+
 def train_lstm(
     train_df: pl.DataFrame,
     val_df: pl.DataFrame,
@@ -143,8 +153,20 @@ def train_lstm(
     seed: int = 42,
     num_workers: int = 0,
     device: str | torch.device | None = None,
+    config_name: str = "default",
+    log_filepath: Path | str | None = None,
 ) -> tuple[LSTMClassifier, StandardScaler, float, dict[str, Any]]:
-    """Trains PyTorch LSTM Classifier with early stopping and post-hoc threshold tuning."""
+    """Trains PyTorch LSTM Classifier with early stopping and post-hoc threshold tuning.
+
+    Args:
+        config_name: Human-readable name for this training configuration (e.g.
+            ``"Config A (baseline)"``). Written into JSONL log records for
+            multi-config sweep identification.
+        log_filepath: Path to a JSONL file where per-epoch training metrics are
+            appended. Each line is a self-contained JSON object with timestamp,
+            elapsed time, losses, and validation metrics. ``None`` disables
+            file logging.
+    """
     set_seed(seed)
     features = feature_cols if feature_cols is not None else FEATURE_COLS
 
@@ -155,7 +177,12 @@ def train_lstm(
     else:
         selected_device = device
 
-    logger.info(f"Training LSTM Classifier on device: {selected_device} (seed={seed})")
+    log_path = Path(log_filepath) if log_filepath is not None else None
+    training_start_time = time.time()
+
+    logger.info(
+        f"Training LSTM Classifier [{config_name}] on device: {selected_device} (seed={seed})"
+    )
 
     # Build sequence datasets
     train_ds = SequenceDataset(
@@ -214,12 +241,20 @@ def train_lstm(
     }
 
     for epoch in range(1, max_epochs + 1):
+        epoch_start = time.time()
+
         # Training pass
         model.train()
         train_loss_sum = 0.0
         train_count = 0
 
-        for x_batch, y_batch in train_loader:
+        train_pbar = tqdm(
+            train_loader,
+            desc=f"[{config_name}] Epoch {epoch}/{max_epochs} Train",
+            leave=False,
+            unit="batch",
+        )
+        for x_batch, y_batch in train_pbar:
             x_batch = x_batch.to(selected_device)
             y_batch = y_batch.to(selected_device)
 
@@ -231,17 +266,25 @@ def train_lstm(
 
             train_loss_sum += loss.item() * len(y_batch)
             train_count += len(y_batch)
+            train_pbar.set_postfix(loss=f"{loss.item():.4f}")
 
         train_loss = train_loss_sum / train_count if train_count > 0 else 0.0
 
-        # Validation pass
+        # Validation pass — collect all predictions for real metric computation
         model.eval()
         val_loss_sum = 0.0
-        val_correct_sum = 0.0
         val_count = 0
+        epoch_val_probs: list[np.ndarray] = []
+        epoch_val_targets: list[np.ndarray] = []
 
+        val_pbar = tqdm(
+            val_loader,
+            desc=f"[{config_name}] Epoch {epoch}/{max_epochs} Val",
+            leave=False,
+            unit="batch",
+        )
         with torch.no_grad():
-            for x_batch, y_batch in val_loader:
+            for x_batch, y_batch in val_pbar:
                 x_batch = x_batch.to(selected_device)
                 y_batch = y_batch.to(selected_device)
 
@@ -250,27 +293,83 @@ def train_lstm(
 
                 val_loss_sum += loss.item() * len(y_batch)
                 probs = torch.sigmoid(logits)
-                preds = (probs >= 0.5).float()
-                val_correct_sum += (preds == y_batch).sum().item()
+                epoch_val_probs.append(probs.cpu().numpy())
+                epoch_val_targets.append(y_batch.cpu().numpy())
                 val_count += len(y_batch)
 
         val_loss = val_loss_sum / val_count if val_count > 0 else 0.0
-        val_acc = val_correct_sum / val_count if val_count > 0 else 0.0
+
+        # Compute real validation metrics per epoch
+        all_val_probs = (
+            np.concatenate(epoch_val_probs) if epoch_val_probs else np.array([])
+        )
+        all_val_targets = (
+            np.concatenate(epoch_val_targets) if epoch_val_targets else np.array([])
+        )
+        val_preds = (all_val_probs >= 0.5).astype(int)
+        epoch_metrics = calculate_metrics(all_val_targets, val_preds, all_val_probs)
+
+        val_acc = epoch_metrics["accuracy"]
+        val_precision = epoch_metrics["precision"]
+        val_recall = epoch_metrics["recall"]
+        val_f1 = epoch_metrics["f1"]
+        val_bal_acc = epoch_metrics["balanced_accuracy"]
+        val_roc_auc = epoch_metrics.get("roc_auc", 0.5)
 
         history["epoch"].append(epoch)
         history["train_loss"].append(float(train_loss))
         history["val_loss"].append(float(val_loss))
         history["val_acc"].append(float(val_acc))
-        history["val_precision"].append(float(val_acc))
-        history["val_recall"].append(float(val_acc))
-        history["val_f1"].append(float(val_acc))
-        history["val_roc_auc"].append(0.5)
-        history["val_balanced_acc"].append(float(val_acc))
+        history["val_precision"].append(float(val_precision))
+        history["val_recall"].append(float(val_recall))
+        history["val_f1"].append(float(val_f1))
+        history["val_roc_auc"].append(float(val_roc_auc))
+        history["val_balanced_acc"].append(float(val_bal_acc))
+
+        epoch_elapsed = time.time() - epoch_start
+        total_elapsed = time.time() - training_start_time
+        is_best = val_loss < best_val_loss
 
         logger.info(
-            f"Epoch {epoch}/{max_epochs} - Train Loss: {train_loss:.4f} | "
-            f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}"
+            f"Epoch {epoch}/{max_epochs} - "
+            f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
+            f"Acc: {val_acc:.4f} | Prec: {val_precision:.4f} | "
+            f"Rec: {val_recall:.4f} | F1: {val_f1:.4f} | "
+            f"Bal Acc: {val_bal_acc:.4f} | AUC: {val_roc_auc:.4f} | "
+            f"Epoch Time: {epoch_elapsed:.1f}s"
         )
+
+        # Write JSONL log record
+        if log_path is not None:
+            from datetime import datetime
+
+            log_record = {
+                "config_name": config_name,
+                "epoch": epoch,
+                "max_epochs": max_epochs,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "epoch_elapsed_sec": round(epoch_elapsed, 2),
+                "total_elapsed_sec": round(total_elapsed, 2),
+                "train_loss": round(float(train_loss), 6),
+                "val_loss": round(float(val_loss), 6),
+                "val_acc": round(float(val_acc), 6),
+                "val_precision": round(float(val_precision), 6),
+                "val_recall": round(float(val_recall), 6),
+                "val_f1": round(float(val_f1), 6),
+                "val_balanced_acc": round(float(val_bal_acc), 6),
+                "val_roc_auc": round(float(val_roc_auc), 6),
+                "is_best_epoch": is_best,
+                "patience_counter": patience_counter + (0 if is_best else 1),
+                "hparams": {
+                    "seq_len": seq_len,
+                    "hidden_size": hidden_size,
+                    "num_layers": num_layers,
+                    "dropout": dropout,
+                    "lr": lr,
+                    "batch_size": batch_size,
+                },
+            }
+            _append_jsonl(log_path, log_record)
 
         # Check early stopping
         if val_loss < best_val_loss:

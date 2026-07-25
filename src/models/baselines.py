@@ -2,12 +2,15 @@
 Baseline models (Majority Class and OLS Return Regression) for benchmark comparison.
 """
 
+import logging
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -39,9 +42,16 @@ def train_baselines(
     """
     counts = np.bincount(y_train.astype(int))
     majority_label = int(np.argmax(counts))
+    logger.info(
+        f"Majority class baseline: label={majority_label} "
+        f"(class 0: {int(counts[0])}, class 1: {int(counts[1])}, "
+        f"positive rate: {int(counts[1]) / len(y_train):.4f})"
+    )
 
     ols_model = LinearRegression()
     ols_model.fit(X_train, r_train)
+    r2 = float(ols_model.score(X_train, r_train))
+    logger.info(f"OLS return regression fitted: R²={r2:.6f}, threshold={threshold}")
 
     return BaselineArtifacts(
         majority_label=majority_label,
@@ -75,6 +85,7 @@ def save_baseline_artifacts(artifacts: BaselineArtifacts, dest_dir: Path) -> Non
     file_path = dest_dir / "baseline_artifacts.pkl"
     with open(file_path, "wb") as f:
         pickle.dump(artifacts, f)
+    logger.info(f"Saved baseline artifacts to {file_path}")
 
 
 def load_baseline_artifacts(filepath: Path) -> BaselineArtifacts:

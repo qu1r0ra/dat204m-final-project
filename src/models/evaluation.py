@@ -131,6 +131,17 @@ def evaluate_per_symbol(
             sym_metrics["count"] = len(y_t)
             per_symbol_metrics[str(sym)] = sym_metrics
 
+    logger.info(
+        f"Per-symbol evaluation: {len(per_symbol_metrics)} symbols, {len(y_true):,} total samples"
+    )
+    if per_symbol_metrics:
+        best = max(per_symbol_metrics, key=lambda s: per_symbol_metrics[s]["f1"])
+        worst = min(per_symbol_metrics, key=lambda s: per_symbol_metrics[s]["f1"])
+        logger.info(
+            f"  Best F1: {best} ({per_symbol_metrics[best]['f1']:.4f}), "
+            f"Worst F1: {worst} ({per_symbol_metrics[worst]['f1']:.4f})"
+        )
+
     return per_symbol_metrics
 
 
@@ -175,6 +186,12 @@ def evaluate_by_regime(
             bin_m["max_val"] = float(q_high)
             regime_name = regimes[i]
             regime_metrics[regime_name] = bin_m
+
+    for name, rm in regime_metrics.items():
+        logger.info(
+            f"Regime '{name}' ({rm['min_val']:.6f}-{rm['max_val']:.6f}): "
+            f"n={rm['count']:,}, F1={rm['f1']:.4f}, Bal Acc={rm['balanced_accuracy']:.4f}"
+        )
 
     return regime_metrics
 

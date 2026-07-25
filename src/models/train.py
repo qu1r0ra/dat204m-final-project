@@ -7,6 +7,7 @@ and fitting of classifiers (Logistic Regression and Random Forest) with seed rep
 
 import logging
 import pickle
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -95,6 +96,12 @@ def prepare_features_and_targets(
         )
 
     clean_df = df.select([*feature_cols, target_col]).drop_nulls()
+    rows_dropped = len(df) - len(clean_df)
+    if rows_dropped > 0:
+        logger.info(
+            f"prepare_features_and_targets: dropped {rows_dropped:,} null rows "
+            f"({len(clean_df):,} remaining from {len(df):,})"
+        )
 
     if len(clean_df) == 0:
         raise DataValidationError(
@@ -104,6 +111,11 @@ def prepare_features_and_targets(
     # Extract features and targets
     X = clean_df.select(feature_cols).to_numpy()
     y = clean_df.select(target_col).to_numpy().ravel()
+
+    pos_rate = float(y.mean()) if len(y) > 0 else 0.0
+    logger.info(
+        f"Feature matrix shape: {X.shape}, target '{target_col}' positive rate: {pos_rate:.4f}"
+    )
 
     return X, y
 
@@ -130,20 +142,36 @@ def train_pipeline(
     # 1. Logistic Regression
     logger.info("Training Logistic Regression...")
     lr = LogisticRegression(max_iter=1000, random_state=seed, C=0.1)
+    t0 = time.perf_counter()
     lr.fit(X_train_scaled, y_train)
+    lr_elapsed = time.perf_counter() - t0
     lr_val_preds = lr.predict(X_val_scaled)
     lr_val_probs = lr.predict_proba(X_val_scaled)[:, 1]
     lr_metrics = calculate_metrics(y_val, lr_val_preds, lr_val_probs)
     log_metrics(lr_metrics, model_name="Logistic Regression")
+    logger.info(f"Logistic Regression fitted in {lr_elapsed:.2f}s")
+
+    # Log top LR coefficients
+    coef_indices = np.argsort(np.abs(lr.coef_[0]))[::-1][:5]
+    top_lr = [(feature_cols[i], float(lr.coef_[0][i])) for i in coef_indices]
+    logger.info(f"Top 5 LR coefficients (abs): {top_lr}")
 
     # 2. Random Forest Classifier
     logger.info("Training Random Forest Classifier (this may take a few moments)...")
     rf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=seed, n_jobs=-1)
+    t0 = time.perf_counter()
     rf.fit(X_train_scaled, y_train)
+    rf_elapsed = time.perf_counter() - t0
     rf_val_preds = rf.predict(X_val_scaled)
     rf_val_probs = rf.predict_proba(X_val_scaled)[:, 1]
     rf_metrics = calculate_metrics(y_val, rf_val_preds, rf_val_probs)
     log_metrics(rf_metrics, model_name="Random Forest")
+    logger.info(f"Random Forest fitted in {rf_elapsed:.2f}s")
+
+    # Log top RF feature importances
+    imp_indices = np.argsort(rf.feature_importances_)[::-1][:5]
+    top_rf = [(feature_cols[i], float(rf.feature_importances_[i])) for i in imp_indices]
+    logger.info(f"Top 5 RF feature importances: {top_rf}")
 
     metrics_dict = {
         "logistic_regression": lr_metrics,

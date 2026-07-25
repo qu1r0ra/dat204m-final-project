@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                                                                                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-25                                                                                                                                                                                                                                                                    |
-| **Last session focus** | SageMaker Environment Setup & Manual Bootstrapping: Simplified SageMaker setup in `docs/plans/full_aws_execution.md` by eliminating Lifecycle Configuration scripts in favor of manual terminal bootstrapping (`uv sync`, kernel registration) with 35 GB minimum EBS volume. |
-| **Active tasks**       | SageMaker JupyterLab Notebook Execution (`notebooks/01_eda_descriptive_analytics.ipynb`, `notebooks/02_ml_feature_engineering_training.ipynb`, `notebooks/03_ml_evaluation_error_analysis.ipynb`).                                                                            |
-| **Blockers**           | None (User actively running `uv sync` in JupyterLab terminal).                                                                                                                                                                                                                |
+| Field                  | Value                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Last updated**       | 2026-07-25                                                                                                                                                                                                                                                         |
+| **Last session focus** | PyTorch LSTM Observability & Notebook Execution Order: Fixed Notebook 2 (`notebooks/02_ml_feature_engineering_training.ipynb`) execution order and added real-time observability (`tqdm` progress bars, `models/lstm_training_log.jsonl` writer, real per-epoch validation metrics). Verified all 31 pytest unit tests pass cleanly in 76s. |
+| **Active tasks**       | SageMaker JupyterLab Notebook Execution (`notebooks/01_eda_descriptive_analytics.ipynb`, `notebooks/02_ml_feature_engineering_training.ipynb`, `notebooks/03_ml_evaluation_error_analysis.ipynb`).                                                                 |
+| **Blockers**           | None.                                                                                                                                                                                                                                                              |
 
 ---
 
@@ -54,8 +54,8 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Ingestion & S3 Pipeline**: 21,932 raw CSV files (~80.8 GB, 609M records) downloaded, stored in `data/raw/`, synced to S3, and cataloged in AWS Glue database (`binance_hub_db`). Downsampled 20-symbol Parquet sample (30.6M records) generated and cataloged.
 - **Cloud Infrastructure**: CloudFormation stack `dat204m-binance-hub-stack` deployed with cross-account spoke access policy. SageMaker Notebook setup streamlined for manual terminal bootstrapping.
 - **Distributed PySpark Engine**: PySpark pipelines operational for profiling, sample generation, feature engineering, and MLlib distributed training. Dynamic `winutils.exe` provisioning integrated for Windows compatibility.
-- **Modeling & Feature Engineering**: 16-feature set configured. Classifiers evaluated (Majority Floor 54.35%, OLS 50.84%, LogReg 54.76%, RF 55.04% AUC 0.551, PyTorch LSTM Sequence Classifier passing all unit tests).
-- **Code Quality & Verification**: All 30 unit tests pass in `pytest` cleanly in 75s with zero ruff lint or formatting errors.
+- **Modeling & Feature Engineering**: 16-feature set configured. Classifiers evaluated (Majority Floor 54.35%, OLS 50.84%, LogReg 54.76%, RF 55.04% AUC 0.551, PyTorch LSTM Sequence Classifier with live `tqdm` progress and `models/lstm_training_log.jsonl` logging passing all unit tests).
+- **Code Quality & Verification**: All 31 unit tests pass in `pytest` cleanly in 76s with zero ruff lint or formatting errors.
 
 _For detailed historical progress logs and completed task timelines, see [docs/session_history.md](docs/session_history.md)._
 

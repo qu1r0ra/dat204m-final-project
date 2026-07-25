@@ -34,17 +34,17 @@ The canonical 16-feature set (`src.config.FEATURE_COLS`) comprises:
 
 ## 4. Benchmark Performance Metrics
 
-_Results evaluated on validation partition and test partition across the 16-feature set:_
+_Performance table to be populated upon completion of full 20-symbol AWS SageMaker AI production execution (`EXECUTION_MODE=aws_hub`):_
 
-| Model | Partition | Threshold | Accuracy | Precision | Recall | F1-Score | Balanced Acc | AUC-ROC |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Majority Class** | Test (4.6M) | - | 0.5435 | 0.0000 | 0.0000 | 0.0000 | 0.5000 | 0.5000 |
-| **OLS Return Reg** | Test (4.6M) | 0.000 | 0.5084 | 0.4612 | 0.4939 | 0.4769 | 0.5072 | 0.5012 |
-| **Logistic Reg (0.5)** | Test (4.6M) | 0.500 | 0.5476 | 0.5843 | 0.0210 | 0.0405 | 0.5055 | 0.5372 |
-| **Logistic Reg (tuned)** | Test (4.6M) | 0.480 | 0.5302 | 0.4862 | 0.4831 | 0.4847 | 0.5264 | 0.5372 |
-| **Random Forest (0.5)** | Test (4.6M) | 0.500 | 0.5504 | 0.5521 | 0.1912 | 0.2840 | 0.5218 | 0.5510 |
-| **Random Forest (tuned)** | Test (4.6M) | 0.480 | 0.5315 | 0.4877 | 0.4820 | 0.4848 | 0.5361 | 0.5510 |
-| **PyTorch LSTM (tuned)** | Validation | 0.485 | 0.5328 | 0.4891 | 0.4854 | 0.4872 | 0.5370 | 0.5524 |
+| Model                     | Partition | Threshold | Accuracy | Precision | Recall | F1-Score | Balanced Acc | AUC-ROC |
+| ------------------------- | --------- | --------- | -------- | --------- | ------ | -------- | ------------ | ------- |
+| **Majority Class**        | Test      | -         | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **OLS Return Reg**        | Test      | TBD       | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **Logistic Reg (0.5)**    | Test      | 0.500     | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **Logistic Reg (tuned)**  | Test      | TBD       | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **Random Forest (0.5)**   | Test      | 0.500     | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **Random Forest (tuned)** | Test      | TBD       | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
+| **PyTorch LSTM (tuned)**  | Test      | TBD       | TBD      | TBD       | TBD    | TBD      | TBD          | TBD     |
 
 ---
 
@@ -55,4 +55,3 @@ _Results evaluated on validation partition and test partition across the 16-feat
 - **PyTorch Sidecar JSON**: `models/lstm_checkpoint_metrics.json`.
 - **Training Observability Log**: `models/lstm_training_log.jsonl` (JSON Lines log updated live per epoch with timestamp, elapsed time, loss, accuracy, precision, recall, F1, balanced accuracy, ROC-AUC, and early stopping state).
 - **Evaluation Summary Report**: `docs/evaluation_report.json`.
-

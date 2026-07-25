@@ -103,7 +103,8 @@ def log_metrics(
     if "confusion_matrix" in metrics:
         cm = metrics["confusion_matrix"]
         log.info(
-            f"Confusion Matrix: TN={cm.get('tn')}, FP={cm.get('fp')}, FN={cm.get('fn')}, TP={cm.get('tp')}"
+            f"Confusion Matrix: TN={cm.get('tn')}, FP={cm.get('fp')}, "
+            f"FN={cm.get('fn')}, TP={cm.get('tp')}"
         )
 
 
@@ -127,7 +128,7 @@ def evaluate_per_symbol(
 
         if len(y_t) > 0:
             sym_metrics = calculate_metrics(y_t, y_p, y_pr)
-            sym_metrics["count"] = int(len(y_t))
+            sym_metrics["count"] = len(y_t)
             per_symbol_metrics[str(sym)] = sym_metrics
 
     return per_symbol_metrics
@@ -149,9 +150,7 @@ def evaluate_by_regime(
     vol_vals = df[regime_col].to_numpy()
     quantiles = np.quantile(vol_vals, np.linspace(0, 1, num_bins + 1))
     regimes = (
-        ["Low", "Medium", "High"]
-        if num_bins == 3
-        else [f"Bin_{i+1}" for i in range(num_bins)]
+        ["Low", "Medium", "High"] if num_bins == 3 else [f"Bin_{i + 1}" for i in range(num_bins)]
     )
 
     regime_metrics: dict[str, dict[str, Any]] = {}
@@ -171,7 +170,7 @@ def evaluate_by_regime(
 
         if len(y_t) > 0:
             bin_m = calculate_metrics(y_t, y_p, y_pr)
-            bin_m["count"] = int(len(y_t))
+            bin_m["count"] = len(y_t)
             bin_m["min_val"] = float(q_low)
             bin_m["max_val"] = float(q_high)
             regime_name = regimes[i]
@@ -202,9 +201,7 @@ def generate_evaluation_report(
     )
 
     regimes = (
-        evaluate_by_regime(
-            df, y_true, y_pred, y_prob, regime_col=regime_col, num_bins=num_bins
-        )
+        evaluate_by_regime(df, y_true, y_pred, y_prob, regime_col=regime_col, num_bins=num_bins)
         if regime_col in df.columns
         else {}
     )
@@ -219,7 +216,9 @@ def generate_evaluation_report(
 
 
 def _convert_numpy_types(obj: Any) -> Any:
-    """Helper function to convert NumPy scalars/arrays to standard Python types for JSON serialization."""
+    """Helper function to convert NumPy scalars/arrays to standard Python types
+    for JSON serialization.
+    """
     if isinstance(obj, (np.integer, int)):
         return int(obj)
     elif isinstance(obj, (np.floating, float)):
@@ -264,12 +263,11 @@ def plot_confusion_matrix(
     return fig
 
 
-def plot_roc_curves(
-    model_probs: dict[str, np.ndarray], y_true: np.ndarray
-) -> plt.Figure:
+def plot_roc_curves(model_probs: dict[str, np.ndarray], y_true: np.ndarray) -> plt.Figure:
     """Plots comparative ROC curves for multiple models.
 
-    'model_probs' is a dictionary mapping model names to their prediction probabilities on the test set.
+    'model_probs' is a dictionary mapping model names to their prediction
+    probabilities on the test set.
     """
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.plot([0, 1], [0, 1], "k--", label="Random Baseline (AUC = 0.50)")

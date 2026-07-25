@@ -62,7 +62,8 @@ def split_data_chronologically(
     - Test: open_time >= val_end + purge_minutes
     """
     logger.info(
-        f"Chronologically splitting data: train_end={train_end}, val_end={val_end}, purge_minutes={purge_minutes}"
+        f"Chronologically splitting data: train_end={train_end}, "
+        f"val_end={val_end}, purge_minutes={purge_minutes}"
     )
 
     # Parse inputs to datetime objects
@@ -70,22 +71,16 @@ def split_data_chronologically(
     val_end_dt = pl.lit(val_end).str.to_datetime()
 
     purge_delta = (
-        pl.duration(minutes=purge_minutes)
-        if purge_minutes > 0
-        else pl.duration(seconds=0)
+        pl.duration(minutes=purge_minutes) if purge_minutes > 0 else pl.duration(seconds=0)
     )
     val_start_dt = train_end_dt + purge_delta
     test_start_dt = val_end_dt + purge_delta
 
     train_df = df.filter(pl.col("open_time") < train_end_dt)
-    val_df = df.filter(
-        (pl.col("open_time") >= val_start_dt) & (pl.col("open_time") < val_end_dt)
-    )
+    val_df = df.filter((pl.col("open_time") >= val_start_dt) & (pl.col("open_time") < val_end_dt))
     test_df = df.filter(pl.col("open_time") >= test_start_dt)
 
-    logger.info(
-        f"Split sizes - Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}"
-    )
+    logger.info(f"Split sizes - Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
     return train_df, val_df, test_df
 
 
@@ -93,13 +88,13 @@ def prepare_features_and_targets(
     df: pl.DataFrame, feature_cols: list[str], target_col: str
 ) -> tuple[np.ndarray, np.ndarray]:
     """Extracts features and target labels as NumPy arrays, dropping any remaining nulls."""
-    missing_cols = set(feature_cols + [target_col]) - set(df.columns)
+    missing_cols = set([*feature_cols, target_col]) - set(df.columns)
     if missing_cols:
         raise DataValidationError(
             f"DataFrame missing required feature/target columns: {missing_cols}"
         )
 
-    clean_df = df.select(feature_cols + [target_col]).drop_nulls()
+    clean_df = df.select([*feature_cols, target_col]).drop_nulls()
 
     if len(clean_df) == 0:
         raise DataValidationError(
@@ -143,9 +138,7 @@ def train_pipeline(
 
     # 2. Random Forest Classifier
     logger.info("Training Random Forest Classifier (this may take a few moments)...")
-    rf = RandomForestClassifier(
-        n_estimators=100, max_depth=10, random_state=seed, n_jobs=-1
-    )
+    rf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=seed, n_jobs=-1)
     rf.fit(X_train_scaled, y_train)
     rf_val_preds = rf.predict(X_val_scaled)
     rf_val_probs = rf.predict_proba(X_val_scaled)[:, 1]

@@ -22,7 +22,8 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 import src.config as config
-from src.exceptions import DataValidationError, SparkPipelineError
+from src.config import FEATURE_COLS
+from src.exceptions import DataValidationError
 from src.utils.seed import get_provenance_metadata, set_seed
 
 logger = logging.getLogger(__name__)
@@ -50,8 +51,6 @@ class SparkModelArtifacts:
             feature_names=self.feature_names,
         )
 
-
-from src.config import FEATURE_COLS
 
 # Default feature columns sourced from canonical config.
 # Note: indicators_spark.py must compute the 5 order-flow/time UDF features before a full Spark run.
@@ -87,7 +86,7 @@ def compute_targets_spark(
     cols = feature_cols if feature_cols is not None else DEFAULT_FEATURE_COLS
     available_cols = [c for c in cols if c in df_features.columns]
 
-    drop_cols = list(set(available_cols + ["target"]))
+    drop_cols = list(set([*available_cols, "target"]))
     df_clean = df_labeled.dropna(subset=drop_cols)
 
     return df_clean
@@ -97,17 +96,13 @@ def split_data_chronologically_spark(
     df: DataFrame, train_end: str, val_end: str
 ) -> tuple[DataFrame, DataFrame, DataFrame]:
     """Splits Spark DataFrame chronologically using timestamp filters."""
-    logger.info(
-        f"Splitting Spark data chronologically: train_end={train_end}, val_end={val_end}"
-    )
+    logger.info(f"Splitting Spark data chronologically: train_end={train_end}, val_end={val_end}")
 
     train_end_ts = F.lit(train_end).cast("timestamp")
     val_end_ts = F.lit(val_end).cast("timestamp")
 
     train_df = df.filter(F.col("open_time") < train_end_ts)
-    val_df = df.filter(
-        (F.col("open_time") >= train_end_ts) & (F.col("open_time") < val_end_ts)
-    )
+    val_df = df.filter((F.col("open_time") >= train_end_ts) & (F.col("open_time") < val_end_ts))
     test_df = df.filter(F.col("open_time") >= val_end_ts)
 
     return train_df, val_df, test_df
@@ -140,9 +135,7 @@ def train_pipeline_spark(
 
     # 3. Classifiers
     logger.info("Configuring Logistic Regression and Random Forest estimators...")
-    lr = LogisticRegression(
-        featuresCol="features", labelCol="target", maxIter=100, regParam=0.1
-    )
+    lr = LogisticRegression(featuresCol="features", labelCol="target", maxIter=100, regParam=0.1)
     rf = RandomForestClassifier(
         featuresCol="features", labelCol="target", numTrees=100, maxDepth=10, seed=seed
     )
@@ -192,7 +185,8 @@ def train_pipeline_spark(
     lr_pr = pr_evaluator.evaluate(lr_predictions)
 
     logger.info(
-        f"Logistic Regression Validation - Acc: {lr_accuracy:.4f}, Prec: {lr_prec:.4f}, Rec: {lr_rec:.4f}, F1: {lr_f1:.4f}, AUC-ROC: {lr_auc:.4f}, PR-AUC: {lr_pr:.4f}"
+        f"Logistic Regression Validation - Acc: {lr_accuracy:.4f}, Prec: {lr_prec:.4f}, "
+        f"Rec: {lr_rec:.4f}, F1: {lr_f1:.4f}, AUC-ROC: {lr_auc:.4f}, PR-AUC: {lr_pr:.4f}"
     )
 
     rf_accuracy = acc_evaluator.evaluate(rf_predictions)
@@ -203,7 +197,8 @@ def train_pipeline_spark(
     rf_pr = pr_evaluator.evaluate(rf_predictions)
 
     logger.info(
-        f"Random Forest Validation - Acc: {rf_accuracy:.4f}, Prec: {rf_prec:.4f}, Rec: {rf_rec:.4f}, F1: {rf_f1:.4f}, AUC-ROC: {rf_auc:.4f}, PR-AUC: {rf_pr:.4f}"
+        f"Random Forest Validation - Acc: {rf_accuracy:.4f}, Prec: {rf_prec:.4f}, "
+        f"Rec: {rf_rec:.4f}, F1: {rf_f1:.4f}, AUC-ROC: {rf_auc:.4f}, PR-AUC: {rf_pr:.4f}"
     )
 
     spark_metrics = {
@@ -244,14 +239,10 @@ def save_spark_models(trained_artifacts: SparkModelArtifacts, dest_dir: Path) ->
     rf_path = dest_dir / "spark_random_forest"
 
     logger.info(f"Saving Logistic Regression Spark Pipeline to {lr_path}...")
-    trained_artifacts.logistic_regression.write().overwrite().save(
-        str(lr_path).replace("\\", "/")
-    )
+    trained_artifacts.logistic_regression.write().overwrite().save(str(lr_path).replace("\\", "/"))
 
     logger.info(f"Saving Random Forest Spark Pipeline to {rf_path}...")
-    trained_artifacts.random_forest.write().overwrite().save(
-        str(rf_path).replace("\\", "/")
-    )
+    trained_artifacts.random_forest.write().overwrite().save(str(rf_path).replace("\\", "/"))
 
     if trained_artifacts.metrics:
         from src.models.evaluation import save_metrics_json

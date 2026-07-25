@@ -65,9 +65,7 @@ def test_sequence_dataset_no_cross_symbol(multi_symbol_synthetic_df):
     assert len(dataset) == 182
 
     # Spot check window end indices
-    symbols = multi_symbol_synthetic_df.sort(["symbol", "open_time"])[
-        "symbol"
-    ].to_numpy()
+    symbols = multi_symbol_synthetic_df.sort(["symbol", "open_time"])["symbol"].to_numpy()
     for idx in range(len(dataset)):
         end_idx = dataset.valid_end_indices[idx]
         start_idx = end_idx - seq_len + 1
@@ -96,12 +94,8 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
     seq_len = 10
 
     # Split synthetic data into train and val
-    train_df = multi_symbol_synthetic_df.filter(
-        pl.col("open_time") < datetime(2024, 1, 1, 1, 10)
-    )
-    val_df = multi_symbol_synthetic_df.filter(
-        pl.col("open_time") >= datetime(2024, 1, 1, 1, 10)
-    )
+    train_df = multi_symbol_synthetic_df.filter(pl.col("open_time") < datetime(2024, 1, 1, 1, 10))
+    val_df = multi_symbol_synthetic_df.filter(pl.col("open_time") >= datetime(2024, 1, 1, 1, 10))
 
     log_file = tmp_path / "test_training_log.jsonl"
 
@@ -186,12 +180,8 @@ def test_lstm_jsonl_training_log(multi_symbol_synthetic_df, tmp_path):
     seq_len = 10
     log_file = tmp_path / "lstm_log.jsonl"
 
-    train_df = multi_symbol_synthetic_df.filter(
-        pl.col("open_time") < datetime(2024, 1, 1, 1, 10)
-    )
-    val_df = multi_symbol_synthetic_df.filter(
-        pl.col("open_time") >= datetime(2024, 1, 1, 1, 10)
-    )
+    train_df = multi_symbol_synthetic_df.filter(pl.col("open_time") < datetime(2024, 1, 1, 1, 10))
+    val_df = multi_symbol_synthetic_df.filter(pl.col("open_time") >= datetime(2024, 1, 1, 1, 10))
 
     _, _, _, history = train_lstm(
         train_df=train_df,

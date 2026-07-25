@@ -56,7 +56,9 @@ def ensure_hadoop_home() -> None:
         winutils_exe = bin_dir / "winutils.exe"
         if not winutils_exe.exists():
             attrib_exe = (
-                Path(os.environ.get("SYSTEMROOT", "C:\\Windows")) / "System32" / "attrib.exe"
+                Path(os.environ.get("SYSTEMROOT", "C:\\Windows"))
+                / "System32"
+                / "attrib.exe"
             )
             if attrib_exe.exists():
                 try:
@@ -94,27 +96,55 @@ def get_spark_session() -> SparkSession:
     else:
         logger.info("Configuring Spark for cluster/EMR execution...")
 
-    # Configure AWS S3A access if AWS credentials are provided
-    if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"):
-        logger.info("Configuring Spark S3A credentials...")
+    # Configure AWS S3 / S3A access if running in aws_hub mode or credentials are provided
+    if (
+        config.EXECUTION_MODE == "aws_hub"
+        or config.is_s3_path(config.ACTIVE_DATA_PATH)
+        or (
+            config.AWS_ACCESS_KEY_ID
+            and not config.AWS_ACCESS_KEY_ID.startswith("your_")
+        )
+    ):
+        logger.info("Configuring Spark S3/S3A connector packages and filesystem...")
         builder = (
             builder.config("spark.jars.packages", config.SPARK_JARS_PACKAGES)
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            .config("spark.hadoop.fs.s3a.access.key", config.AWS_ACCESS_KEY_ID)
-            .config("spark.hadoop.fs.s3a.secret.key", config.AWS_SECRET_ACCESS_KEY)
-        )
-
-        if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith("your_"):
-            builder = builder.config(
-                "spark.hadoop.fs.s3a.session.token", config.AWS_SESSION_TOKEN
-            ).config(
-                "spark.hadoop.fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider",
+            .config(
+                "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
             )
+            .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        )
+        if config.AWS_REGION:
+            builder = builder.config(
+                "spark.hadoop.fs.s3a.endpoint", f"s3.{config.AWS_REGION}.amazonaws.com"
+            )
+
+        if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith(
+            "your_"
+        ):
+            logger.info("Using explicit AWS access keys for S3A...")
+            builder = builder.config(
+                "spark.hadoop.fs.s3a.access.key", config.AWS_ACCESS_KEY_ID
+            ).config("spark.hadoop.fs.s3a.secret.key", config.AWS_SECRET_ACCESS_KEY)
+
+            if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith(
+                "your_"
+            ):
+                builder = builder.config(
+                    "spark.hadoop.fs.s3a.session.token", config.AWS_SESSION_TOKEN
+                ).config(
+                    "spark.hadoop.fs.s3a.aws.credentials.provider",
+                    "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider",
+                )
+            else:
+                builder = builder.config(
+                    "spark.hadoop.fs.s3a.aws.credentials.provider",
+                    "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+                )
         else:
+            logger.info("Using AWS IAM Role / Default Credential Chain for S3A...")
             builder = builder.config(
                 "spark.hadoop.fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+                "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
             )
 
     try:

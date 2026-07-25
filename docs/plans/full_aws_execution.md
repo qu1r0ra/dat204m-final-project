@@ -9,13 +9,23 @@ This guide provides step-by-step, unambiguous instructions for executing the ful
 
 ## Target Hardware & Environment Configuration
 
-- **Instance Type**: `ml.m5.2xlarge` (8 vCPUs, 32 GB RAM) — _Cost-Effective Standard CPU_
+- **Instance Type**: `ml.g4dn.2xlarge` (8 vCPUs, 32 GB RAM, 1 NVIDIA T4 GPU with 16 GB VRAM) — _Accelerated Computing_
 - **Platform Identifier**: `Amazon Linux 2023, Jupyter Lab 4`
 - **Execution Mode**: Cloud Hub (`EXECUTION_MODE=aws_hub`)
 - **S3 Bucket**: `dat204m-binance-bigdata-hub-sg`
 - **AWS Region**: `ap-southeast-1`
 - **SageMaker IAM Role**: `SageMaker-sagemaker-binance-hub-role-2`
 - **Role ARN**: `arn:aws:iam::872891100013:role/service-role/SageMaker-sagemaker-binance-hub-role-2`
+
+### Projected Execution Timeline (`ml.g4dn.2xlarge`)
+
+| Pipeline Phase                                     | Description                                                                                                                                    | Computing Acceleration                | Projected Time    |
+| :------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ | :---------------- |
+| **Phase 1: EDA & Descriptive Analytics**           | Data loading, missingness checks, volume/volatility profiling (`01_eda_descriptive_analytics.ipynb`)                                           | 8 vCPUs (Polars / PySpark)            | ~3 – 5 mins       |
+| **Phase 2: Feature Engineering & Baseline Models** | 16-indicator engineering, chronological train/val/test split, Logistic Regression & Random Forest (`02_ml_feature_engineering_training.ipynb`) | 8 vCPUs multi-threading (`n_jobs=-1`) | ~3 – 4 mins       |
+| **Phase 2: PyTorch LSTM Deep Learning**            | 20-epoch training sweep on ~30.6M sequence windows with early stopping & threshold tuning (`02_ml_feature_engineering_training.ipynb`)         | NVIDIA T4 GPU (`cuda`)                | ~10 – 12 mins     |
+| **Phase 3: Model Evaluation & Error Analysis**     | Predictions, ROC/PR curves, confusion matrices, regime summary & JSON export (`03_ml_evaluation_error_analysis.ipynb`)                         | 8 vCPUs / T4 GPU                      | ~2 – 3 mins       |
+| **Total Pipeline**                                 | **End-to-end notebook pipeline execution**                                                                                                     | **Accelerated GPU + CPU**             | **~18 – 25 mins** |
 
 ---
 
@@ -81,7 +91,7 @@ To create a persona-based IAM Execution Role with bucket access using **Amazon S
 1. Go to **Notebook** -> **Notebook instances** -> Click **Create notebook instance**.
 2. Settings:
    - **Notebook instance name**: `dat204m-production-node`
-   - **Notebook instance type**: `ml.m5.2xlarge` (8 vCPUs, 32 GB RAM)
+   - **Notebook instance type**: `ml.g4dn.2xlarge` (8 vCPUs, 32 GB RAM, 1 NVIDIA T4 GPU)
    - **Platform identifier**: `Amazon Linux 2023, Jupyter Lab 4`
    - **Volume size (GB)**: Set to **`35 GB`** (or `50 GB` - required for PyTorch CUDA wheels and PySpark packages).
 3. Under **Git repositories** (optional automated clone):

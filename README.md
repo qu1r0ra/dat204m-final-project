@@ -48,30 +48,45 @@ A high-level overview of the repository organization:
 │   ├── project/              # Data and model registry definitions
 │   └── rules/                # Canonical domain rules (.mdc files)
 ├── aws/                      # AWS infrastructure scripts and configurations
-│   └── s3_bucket_policy.json # Cross-account S3 bucket policy template
+│   ├── hub_infrastructure.yaml # CloudFormation template for hub infrastructure
+│   ├── s3_bucket_policy.json # Cross-account S3 bucket policy template
+│   └── sagemaker_bootstrap.sh# SageMaker Notebook lifecycle configuration script
 ├── data/                     # Git-ignored local data directory
 │   ├── raw/                  # Downloaded raw monthly CSV files
 │   └── sample/               # Local compressed sample Parquet files
 ├── docs/                     # Written deliverables, reports, and documentation
-│   ├── specs.md              # Project specifications
-│   ├── team_roles.md         # Team roles and task dissemination
+│   ├── audits/               # Codebase quality and final audit plans
+│   │   └── final_refactors.md# Post-audit refactoring roadmap
+│   ├── plans/                # Detailed feature & architecture implementation plans
+│   │   ├── full_aws_execution.md    # AWS SageMaker AI production execution guide
+│   │   ├── lstm_design.md           # Sequence dataset & PyTorch LSTM design spec
+│   │   ├── lstm_implementation.md   # PyTorch LSTM implementation specification
+│   │   └── refactoring_master_plan.md# 9-pillar architectural master plan
 │   ├── data_profile.md       # Auto-generated dataset profiling report (DuckDB)
-│   └── data_profile_spark.md # Auto-generated dataset profiling report (Spark)
+│   ├── data_profile_spark.md # Auto-generated dataset profiling report (Spark)
+│   ├── session_history.md    # Historical task milestone timeline
+│   ├── specs.md              # Project specifications
+│   └── team_roles.md         # Team roles and task dissemination
 ├── notebooks/                # Jupyter Notebooks for deliverables
 │   ├── 01_eda_descriptive_analytics.ipynb         # Phase 1: Descriptive profiling & visualizations
 │   ├── 02_ml_feature_engineering_training.ipynb   # Phase 2: Signal features & model training
 │   └── 03_ml_evaluation_error_analysis.ipynb      # Phase 2: Evaluation metrics & recommendations
 ├── src/                      # Source package
 │   ├── __init__.py
-│   ├── config.py             # Configuration parameters and environment variables loader
+│   ├── cli.py                # Unified Pipeline CLI entrypoint
+│   ├── config.py             # Configuration parameters loader & environment loader
+│   ├── exceptions.py         # Custom domain exception classes
 │   ├── features/             # Feature engineering and signal generation
 │   │   ├── __init__.py
-│   │   ├── indicators.py     # Rolling Polars indicators
-│   │   └── indicators_spark.py # UDF-based Spark feature indicators
+│   │   ├── indicators.py     # Rolling Polars technical indicators
+│   │   ├── indicators_spark.py # UDF-based Spark feature indicators
+│   │   └── labels.py         # Binary price direction label generator
 │   ├── models/               # Model definitions, training, and evaluation pipelines
 │   │   ├── __init__.py
-│   │   ├── evaluation.py     # Unified classification and evaluation metrics
-│   │   ├── lstm.py           # PyTorch sequence dataset & LSTM model architecture
+│   │   ├── base.py           # Base Classifier abstract base class
+│   │   ├── baselines.py      # Majority Floor and OLS baseline classifiers
+│   │   ├── evaluation.py     # Unified classification metrics and evaluation
+│   │   ├── lstm.py           # PyTorch sequence dataset & LSTM architecture
 │   │   ├── train.py          # Scikit-learn training pipeline
 │   │   └── train_spark.py    # PySpark MLlib training pipeline
 │   ├── pipeline/             # Data preprocessing and ingestion pipelines
@@ -86,15 +101,18 @@ A high-level overview of the repository organization:
 │       ├── __init__.py
 │       ├── aws_client.py     # General AWS client helpers
 │       ├── helpers.py        # Shared utility helper methods
+│       ├── seed.py           # Global random seed utility for reproducibility
 │       └── spark_client.py   # Unified Spark Session configuration
-├── tests/                    # pytest suite for validation
+├── tests/                    # pytest suite for validation (31 unit tests)
 │   ├── __init__.py
 │   ├── conftest.py           # Shared test fixtures and configuration
+│   ├── test_config_and_base.py # Configuration loader & base model tests
 │   ├── test_evaluation.py    # Metric calculation unit tests
-│   ├── test_features.py      # Technical indicator unit tests
-│   ├── test_lstm.py          # PyTorch LSTM architecture & sequence dataset tests
+│   ├── test_features.py      # Technical indicator & label unit tests
+│   ├── test_lstm.py          # PyTorch LSTM architecture & dataset tests
 │   ├── test_models.py        # Baseline & scikit-learn model tests
 │   ├── test_pipelines.py     # Automated tests for ingestion and processing
+│   ├── test_refactoring.py   # Architectural integrity & abstraction tests
 │   └── test_spark_pipelines.py # Spark-specific integration test suite
 ├── AGENTS.md                 # Agent entrypoint and rules index
 └── HANDOFF.md                # Workspace living handoff
@@ -235,7 +253,7 @@ uv run python -m src.cli evaluate
 Verify pipeline logic, feature engineering, baseline/ML models, PyTorch LSTM architectures, and S3 path loading against unit test fixtures:
 
 ```bash
-# Full automated test suite (30 unit tests)
+# Full automated test suite (31 unit tests across 8 test modules)
 uv run pytest
 
 # Fast unit tests (excluding PySpark integration)
@@ -277,11 +295,80 @@ Apply [aws/s3_bucket_policy.json](aws/s3_bucket_policy.json) to grant read-only 
 
 ### 6.3. SageMaker Notebook Instance Bootstrapping & Production Run Guide
 
-1. **Lifecycle Configuration**: In AWS SageMaker Console -> **Lifecycle configurations**, create a startup script using [aws/sagemaker_bootstrap.sh](aws/sagemaker_bootstrap.sh).
-2. **Instance Launch**: Create a SageMaker Notebook Instance (`ml.g5.xlarge` for GPU acceleration or `ml.m5.2xlarge` / `ml.m5.4xlarge` for CPU compute). Attach the lifecycle configuration.
-3. **Automated Bootstrap**: Upon launch, `sagemaker_bootstrap.sh` automatically installs `uv`, syncs project dependencies (including `s3fs` and `pyspark`), and registers the `Python (DAT204M)` kernel.
-4. **Pipeline Execution**:
-   - Open Jupyter notebook `notebooks/02_ml_feature_engineering_training.ipynb`.
-   - Set `.env` to `EXECUTION_MODE=aws_hub`.
-   - Run all cells sequentially. The notebook reads cloud data from S3, trains all 5 classifiers across all symbols with full 20-epoch sweeps, and exports saved artifacts to `models/`.
-   - Open `notebooks/03_ml_evaluation_error_analysis.ipynb` and run all cells to evaluate the trained models on the held-out test partition.
+1. **Instance Launch**: Create an **Amazon SageMaker AI** Notebook Instance choosing **`ml.g4dn.2xlarge`** (8 vCPUs, 32 GB RAM, 1x NVIDIA T4 GPU with 16 GB VRAM) with **`Amazon Linux 2023, Jupyter Lab 4`** platform and at least **35 GB** EBS volume storage. Attach IAM Execution Role `SageMaker-sagemaker-binance-hub-role-2`.
+2. **Terminal Bootstrapping**:
+   - Open JupyterLab and open a Terminal.
+   - Clone repository and sync virtual environment:
+     ```bash
+     cd ~/SageMaker
+     git clone https://github.com/qu1r0ra/dat204m-final-project.git
+     cd dat204m-final-project
+     curl -LsSf https://astral.sh/uv/install.sh | sh
+     export PATH="$HOME/.local/bin:$PATH"
+     uv sync
+     uv run python -m ipykernel install --user --name="dat204m-final-project" --display-name="Python (DAT204M)"
+     ```
+   - Create `.env` configuration file:
+     ```bash
+     cat << 'EOF' > .env
+     EXECUTION_MODE=aws_hub
+     SPARK_EXECUTION_MODE=local
+     AWS_DEFAULT_REGION=ap-southeast-1
+     AWS_S3_BUCKET_NAME=dat204m-binance-bigdata-hub-sg
+     EOF
+     ```
+3. **Pipeline Execution**:
+   - Open Jupyter notebook `notebooks/01_eda_descriptive_analytics.ipynb` and select kernel **`Python (DAT204M)`**. Run all cells.
+   - Open `notebooks/02_ml_feature_engineering_training.ipynb`. The notebook reads cloud data directly from S3, trains all 5 classifiers across all top 20 trading pairs (30.65M rows) with 20-epoch PyTorch LSTM GPU sweeps (~10-12 mins), and saves trained artifacts to `models/`.
+   - Open `notebooks/03_ml_evaluation_error_analysis.ipynb` and run all cells to evaluate trained classifiers on the held-out test partition and export `docs/evaluation_report.json`.
+
+4. **Uninterrupted Background Execution (Preventing Session Disconnects & Timeouts)**:
+
+   > [!TIP]
+   > **Preventing Browser Disconnects**: Interactive browser sessions in SageMaker JupyterLab can disconnect or require a session refresh when idle or when AWS SSO tokens expire. To run Notebook 02 headlessly in the background without keeping your browser open:
+   - **Option A (Terminal - Recommended)**:
+     Run the notebook in the SageMaker terminal on your instance:
+
+     ```bash
+     nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
+     ```
+
+     Monitor progress anytime in the terminal:
+
+     ```bash
+     # Check process status
+     ps aux | grep python
+
+     # Watch live log output
+     tail -f train.log
+
+     # Monitor GPU utilization & VRAM
+     nvidia-smi
+     ```
+
+   - **Option B (Notebook Code Cell)**:
+     Insert a code cell at the top of your notebook in Jupyter:
+
+     ```python
+     import subprocess
+
+     subprocess.Popen(
+         "nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &",
+         shell=True,
+     )
+     print("Background training started! You can safely close your browser.")
+     ```
+
+5. **Syncing Model Checkpoints to AWS S3 & Local Machine**:
+
+   After training completes in SageMaker, sync the generated model artifacts to S3 and your local machine:
+   - **On SageMaker Instance Terminal (Sync Checkpoints to S3)**:
+
+     ```bash
+     aws s3 sync models/ s3://dat204m-binance-bigdata-hub-sg/models/
+     ```
+
+   - **On Local Machine (Sync Checkpoints from S3 to Local)**:
+     ```powershell
+     aws s3 sync s3://dat204m-binance-bigdata-hub-sg/models/ models/
+     ```

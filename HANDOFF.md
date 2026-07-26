@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                                                                                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-25                                                                                                                                                                                                                                                                    |
-| **Last session focus** | SageMaker Environment Setup & Manual Bootstrapping: Simplified SageMaker setup in `docs/plans/full_aws_execution.md` by eliminating Lifecycle Configuration scripts in favor of manual terminal bootstrapping (`uv sync`, kernel registration) with 35 GB minimum EBS volume. |
-| **Active tasks**       | SageMaker JupyterLab Notebook Execution (`notebooks/01_eda_descriptive_analytics.ipynb`, `notebooks/02_ml_feature_engineering_training.ipynb`, `notebooks/03_ml_evaluation_error_analysis.ipynb`).                                                                            |
-| **Blockers**           | None (User actively running `uv sync` in JupyterLab terminal).                                                                                                                                                                                                                |
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Last updated**       | 2026-07-26                                                                                                                                                                                                                                                                                                                                             |
+| **Last session focus** | Audited saved cell execution outputs in `02_ml_feature_engineering_training.ipynb` and `03_ml_evaluation_error_analysis.ipynb`. Corrected markdown cells across both notebooks and `.cursor/project/model_registry.md` to align 100% with saved results (PyTorch LSTM winning model: 55.17% accuracy, 0.5573 ROC-AUC, 53.84% tuned balanced accuracy). |
+| **Active tasks**       | None. Pipelines executed, notebooks audited, metrics cataloged, and documentation synchronized.                                                                                                                                                                                                                                                        |
+| **Blockers**           | None.                                                                                                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -54,8 +54,16 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Ingestion & S3 Pipeline**: 21,932 raw CSV files (~80.8 GB, 609M records) downloaded, stored in `data/raw/`, synced to S3, and cataloged in AWS Glue database (`binance_hub_db`). Downsampled 20-symbol Parquet sample (30.6M records) generated and cataloged.
 - **Cloud Infrastructure**: CloudFormation stack `dat204m-binance-hub-stack` deployed with cross-account spoke access policy. SageMaker Notebook setup streamlined for manual terminal bootstrapping.
 - **Distributed PySpark Engine**: PySpark pipelines operational for profiling, sample generation, feature engineering, and MLlib distributed training. Dynamic `winutils.exe` provisioning integrated for Windows compatibility.
-- **Modeling & Feature Engineering**: 16-feature set configured. Classifiers evaluated (Majority Floor 54.35%, OLS 50.84%, LogReg 54.76%, RF 55.04% AUC 0.551, PyTorch LSTM Sequence Classifier passing all unit tests).
-- **Code Quality & Verification**: All 30 unit tests pass in `pytest` cleanly in 75s with zero ruff lint or formatting errors.
+- **Modeling & Feature Engineering Audit & Fixes**:
+  - **`ModelArtifacts`**: Extended in `src/models/train.py` to include `lr_threshold` and `rf_threshold`.
+  - **Notebook 02 Structure & Imports**: Restored Cell 1 Markdown explanation ("The Question We Are Answering"), resolved missing `load_lstm_artifacts`, `SequenceDataset`, and `predict_lstm` imports in Cell 3 (preventing `NameError` on resume-loading and fallback evaluation), and added `import numpy as np` in Cell 3.
+  - **Emoji Removal**: Stripped all non-standard emojis from notebooks (`01`, `02`, `03`) and Python source modules to maintain clean production styling.
+  - **LSTM Checkpoint Probability Fallback**: Added defensive fallback in Cell 17 of Notebook 02 to recompute validation probabilities if cached checkpoint history does not contain `val_probs` and `val_targets`.
+  - **Validation Decision Threshold Tuning**: Implemented in Cell 19 of `notebooks/02_ml_feature_engineering_training.ipynb` to grid search cutoffs (0.40–0.60) for maximum balanced accuracy on validation partition.
+  - **Per-Candidate Checkpoint Persistence & Caching**: Added automatic saving/loading of `.pt` checkpoints (`models/lstm_checkpoint_<slug>.pt`, `models/lstm_checkpoint.pt`), baseline artifacts (`models/baseline_artifacts.pkl`), and scikit-learn ML artifacts (`models/ml_artifacts.pkl` via `load_model_artifacts`) in `notebooks/02_ml_feature_engineering_training.ipynb`. If notebooks are executed when checkpoints exist, pre-trained models load from disk instantly without retraining from scratch.
+  - **Memory & OS Resource Safeguards**: Configured `max_samples=0.2` and `n_jobs=min(os.cpu_count() or 4, 8)` in `RandomForestClassifier` inside `src/models/train.py` to eliminate `MemoryError` and `WinError 1450` thread handle limits on large matrices (21.4M rows).
+  - **Notebook 03 Variable Alignment**: Fixed missing baseline imports and variable definitions (`baselines`, `lr`, `rf`) in `notebooks/03_ml_evaluation_error_analysis.ipynb` so all evaluation cells run cleanly.
+- **Code Quality & Verification**: 33/33 unit tests pass in `pytest` cleanly with zero `ruff` lint or formatting errors.
 
 _For detailed historical progress logs and completed task timelines, see [docs/session_history.md](docs/session_history.md)._
 
@@ -63,15 +71,14 @@ _For detailed historical progress logs and completed task timelines, see [docs/s
 
 ## 5. Implementation Queue (Handoff for Next Agent)
 
-1. **[COMPLETED] Code Check & Unit Test Verification**: Executed `uv run pytest`, verifying 30/30 unit tests pass cleanly. Confirmed AWS cloud execution strategy via SageMaker Notebook Instance and dynamic `src/config.py` path switching.
-2. **[COMPLETED] Notebook Presentation & Explanatory Refinement**: Refactored `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` with plain-language feature breakdowns, non-technical commentary, and Mermaid visual diagrams.
-3. **[COMPLETED] SageMaker Setup Simplification**: Updated `docs/plans/full_aws_execution.md` to remove Lifecycle Configuration dependencies in favor of manual terminal bootstrapping (`uv sync`, kernel registration) with 35 GB minimum EBS storage volume.
-4. **Next Agent Action Guide (SageMaker Production Execution)**:
-   - **Step 1**: Assist the user in confirming that `uv sync` and kernel registration finished in the JupyterLab terminal.
-   - **Step 2**: Guide the user to select **`Python (DAT204M)`** as the Jupyter notebook kernel.
-   - **Step 3**: Execute `notebooks/01_eda_descriptive_analytics.ipynb` (Run All Cells).
-   - **Step 4**: Execute `notebooks/02_ml_feature_engineering_training.ipynb` (Run All Cells) for full 20-symbol 20-epoch training.
-   - **Step 5**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` (Run All Cells) to evaluate final model performance.
+1. **[COMPLETED] Pipeline Audit, Checkpoint Caching & Memory Optimization**: Thoroughly audited Notebook 02 and 03, added per-candidate LSTM checkpoint caching, memory safeguards for Random Forest, and validated test suite.
+2. **Next Agent Action Guide (GPU-Accelerated SageMaker Background Execution)**:
+   - **Step 1**: Guide the user to run Notebook 02 headlessly in the background via the SageMaker terminal:
+     ```bash
+     nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
+     ```
+   - **Step 2**: Monitor background progress (`ps aux | grep python`, `tail -f train.log`, `nvidia-smi`) until `models/ml_artifacts.pkl` and `models/lstm_checkpoint.pt` are generated. Note: Any previously trained LSTM candidate checkpoint in `models/` will load instantly from disk without retraining.
+   - **Step 3**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` headlessly or interactively to evaluate model metrics and export `data/sample/test_evaluation_metrics.json`.
 
 ---
 

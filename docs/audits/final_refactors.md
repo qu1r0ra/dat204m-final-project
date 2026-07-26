@@ -10,7 +10,7 @@ Reviewed all 19 Python source files (4,400+ LOC), 9 test files (30 tests), `pypr
 
 ## Findings (Ordered by Severity)
 
-### Finding 1 — CLI `evaluate --model-type lstm` Is Broken (🔴 HIGH)
+### Finding 1 — CLI `evaluate --model-type lstm` Is Broken (HIGH)
 
 The `EvaluateCommandHandler` in [cli.py:L278-285](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/src/cli.py#L278-L285) calls `predict_lstm` with this signature:
 
@@ -42,7 +42,7 @@ def predict_lstm(
 
 ---
 
-### Finding 2 — Spark Sessions Never Cleaned Up (🟡 MEDIUM)
+### Finding 2 — Spark Sessions Never Cleaned Up (MEDIUM)
 
 `spark.stop()` is **never called** in production code. The only `spark.stop()` in the entire codebase is in the test fixture at [test_spark_pipelines.py:L82](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/tests/test_spark_pipelines.py#L82).
 
@@ -58,7 +58,7 @@ Affected files:
 
 ---
 
-### Finding 3 — `normalize_path_str` Defined but Never Used (🟢 LOW)
+### Finding 3 — `normalize_path_str` Defined but Never Used (LOW)
 
 [helpers.py:L13-18](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/src/utils/helpers.py#L13-L18) defines `normalize_path_str()`, which was created as Pillar 5 of the refactoring plan. However, **10 call sites** across the source code still use inline `.replace("\\", "/")` instead of this helper:
 
@@ -77,7 +77,7 @@ The only import of `normalize_path_str` is in [test_config_and_base.py](file:///
 
 ---
 
-### Finding 4 — `AWSError` Bypasses Exception Hierarchy (🟢 LOW)
+### Finding 4 — `AWSError` Bypasses Exception Hierarchy (LOW)
 
 [aws_client.py:L22-29](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/src/utils/aws_client.py#L22-L29) defines `AWSError(Exception)` and `CrawlerTimeoutError(AWSError)` as standalone exceptions that inherit from bare `Exception`, not from the Pillar 7 `BinanceAnalyticsError` hierarchy in [exceptions.py](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/src/exceptions.py).
 
@@ -85,7 +85,7 @@ The only import of `normalize_path_str` is in [test_config_and_base.py](file:///
 
 ---
 
-### Finding 5 — `torch.load(weights_only=False)` Warning (🔵 INFO)
+### Finding 5 — `torch.load(weights_only=False)` Warning (INFO)
 
 [lstm.py:L457](file:///c:/Users/Quirora/Documents/GitHub/dat204m-final-project/src/models/lstm.py#L457) uses `weights_only=False`, which PyTorch ≥2.6 emits deprecation warnings about. This is **intentionally correct** here because the checkpoint contains a `StandardScaler` (pickle object), not just state_dict tensors. No code change needed — just adding a code comment documenting the rationale.
 

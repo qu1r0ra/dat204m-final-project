@@ -47,3 +47,32 @@ def test_split_data_chronologically(sample_ohlcv_df):
     # Verify empty partition handling
     _, _, test_empty = split_data_chronologically(sample_ohlcv_df, train_end, "2025-01-01 00:00:00")
     assert len(test_empty) == 0
+
+
+def test_save_and_load_model_artifacts(tmp_path):
+    """Verify save_model_artifacts and load_model_artifacts functionality."""
+    from src.models.train import (
+        ModelArtifacts,
+        load_model_artifacts,
+        save_model_artifacts,
+        train_pipeline,
+    )
+
+    X_train = np.random.randn(50, 4)
+    y_train = np.random.randint(0, 2, 50)
+    X_val = np.random.randn(20, 4)
+    y_val = np.random.randint(0, 2, 20)
+    feature_cols = ["f1", "f2", "f3", "f4"]
+
+    artifacts = train_pipeline(X_train, y_train, X_val, y_val, feature_cols)
+    save_model_artifacts(artifacts, tmp_path)
+
+    assert (tmp_path / "ml_artifacts.pkl").exists()
+
+    loaded_dir = load_model_artifacts(tmp_path)
+    assert isinstance(loaded_dir, ModelArtifacts)
+    assert loaded_dir.feature_names == feature_cols
+
+    loaded_file = load_model_artifacts(tmp_path / "ml_artifacts.pkl")
+    assert isinstance(loaded_file, ModelArtifacts)
+    assert loaded_file.feature_names == feature_cols

@@ -41,6 +41,9 @@ def setup_spark_env() -> None:
     os.environ["JAVA_TOOL_OPTIONS"] = JAVA_OPTIONS
     os.environ["PYSPARK_PYTHON"] = sys.executable
     os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+    # Remove HADOOP_CONF_DIR to prevent loading SageMaker system /etc/hadoop/conf/core-site.xml
+    # which contains unparseable duration strings like "60s" and "24h"
+    os.environ.pop("HADOOP_CONF_DIR", None)
     config.configure_java_home()
 
 
@@ -56,9 +59,7 @@ def ensure_hadoop_home() -> None:
         winutils_exe = bin_dir / "winutils.exe"
         if not winutils_exe.exists():
             attrib_exe = (
-                Path(os.environ.get("SYSTEMROOT", "C:\\Windows"))
-                / "System32"
-                / "attrib.exe"
+                Path(os.environ.get("SYSTEMROOT", "C:\\Windows")) / "System32" / "attrib.exe"
             )
             if attrib_exe.exists():
                 try:
@@ -100,20 +101,17 @@ def get_spark_session() -> SparkSession:
     if (
         config.EXECUTION_MODE == "aws_hub"
         or config.is_s3_path(config.ACTIVE_DATA_PATH)
-        or (
-            config.AWS_ACCESS_KEY_ID
-            and not config.AWS_ACCESS_KEY_ID.startswith("your_")
-        )
+        or (config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"))
     ):
         logger.info("Configuring Spark S3/S3A connector packages and filesystem...")
         builder = (
             builder.config("spark.jars.packages", config.SPARK_JARS_PACKAGES)
-            .config(
-                "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
-            )
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
             .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-            # Override SageMaker/EMR system core-site.xml "60s" string to avoid NumberFormatException in Hadoop
+            # Override SageMaker/EMR system core-site.xml duration strings ("60s", "24h")
+            # with numeric values
             .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60")
+            .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400")
             .config("spark.hadoop.fs.s3a.connection.timeout", "200000")
             .config("spark.hadoop.fs.s3a.connection.establish.timeout", "30000")
         )
@@ -122,17 +120,13 @@ def get_spark_session() -> SparkSession:
                 "spark.hadoop.fs.s3a.endpoint", f"s3.{config.AWS_REGION}.amazonaws.com"
             )
 
-        if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith(
-            "your_"
-        ):
+        if config.AWS_ACCESS_KEY_ID and not config.AWS_ACCESS_KEY_ID.startswith("your_"):
             logger.info("Using explicit AWS access keys for S3A...")
             builder = builder.config(
                 "spark.hadoop.fs.s3a.access.key", config.AWS_ACCESS_KEY_ID
             ).config("spark.hadoop.fs.s3a.secret.key", config.AWS_SECRET_ACCESS_KEY)
 
-            if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith(
-                "your_"
-            ):
+            if config.AWS_SESSION_TOKEN and not config.AWS_SESSION_TOKEN.startswith("your_"):
                 builder = builder.config(
                     "spark.hadoop.fs.s3a.session.token", config.AWS_SESSION_TOKEN
                 ).config(

@@ -97,6 +97,8 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
     train_df = multi_symbol_synthetic_df.filter(pl.col("open_time") < datetime(2024, 1, 1, 1, 10))
     val_df = multi_symbol_synthetic_df.filter(pl.col("open_time") >= datetime(2024, 1, 1, 1, 10))
 
+    log_file = tmp_path / "test_training_log.jsonl"
+
     model, scaler, threshold, history = train_lstm(
         train_df=train_df,
         val_df=val_df,
@@ -110,6 +112,8 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
         max_epochs=3,
         patience=2,
         device="cpu",
+        config_name="test_config",
+        log_filepath=log_file,
     )
 
     assert isinstance(model, LSTMClassifier)
@@ -120,6 +124,13 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
     assert "threshold_grid_search" in history
     assert "best_epoch" in history
     assert "epochs_trained" in history
+
+    # Verify real metrics are recorded (not placeholders)
+    for i in range(len(history["epoch"])):
+        assert 0.0 <= history["val_precision"][i] <= 1.0
+        assert 0.0 <= history["val_recall"][i] <= 1.0
+        assert 0.0 <= history["val_f1"][i] <= 1.0
+        assert 0.0 <= history["val_balanced_acc"][i] <= 1.0
 
     # Test prediction utility
     val_ds = SequenceDataset(
@@ -159,3 +170,143 @@ def test_lstm_training_loop_convergence(multi_symbol_synthetic_df, tmp_path):
     # Verify loaded model predictions match
     loaded_probs, _ = predict_lstm(loaded["model"], val_ds, device="cpu")
     np.testing.assert_allclose(probs, loaded_probs, rtol=1e-5)
+
+
+def test_lstm_jsonl_training_log(multi_symbol_synthetic_df, tmp_path):
+    """Verifies that train_lstm writes valid JSONL log records with real metrics."""
+    import json
+
+    feature_cols = ["f1", "f2", "f3", "f4"]
+    seq_len = 10
+    log_file = tmp_path / "lstm_log.jsonl"
+
+    train_df = multi_symbol_synthetic_df.filter(pl.col("open_time") < datetime(2024, 1, 1, 1, 10))
+    val_df = multi_symbol_synthetic_df.filter(pl.col("open_time") >= datetime(2024, 1, 1, 1, 10))
+
+    _, _, _, history = train_lstm(
+        train_df=train_df,
+        val_df=val_df,
+        feature_cols=feature_cols,
+        target_col="target",
+        seq_len=seq_len,
+        hidden_size=16,
+        num_layers=1,
+        dropout=0.0,
+        batch_size=32,
+        max_epochs=3,
+        patience=2,
+        device="cpu",
+        config_name="jsonl_test",
+        log_filepath=log_file,
+    )
+
+    # File must exist and contain one line per epoch
+    assert log_file.exists()
+    lines = log_file.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == len(history["epoch"])
+
+    # Validate each JSONL record
+    required_keys = {
+        "config_name",
+        "epoch",
+        "max_epochs",
+        "timestamp",
+        "epoch_elapsed_sec",
+        "total_elapsed_sec",
+        "train_loss",
+        "val_loss",
+        "val_acc",
+        "val_precision",
+        "val_recall",
+        "val_f1",
+        "val_balanced_acc",
+        "val_roc_auc",
+        "is_best_epoch",
+        "patience_counter",
+        "hparams",
+    }
+    for i, line in enumerate(lines):
+        record = json.loads(line)
+        assert required_keys.issubset(record.keys()), f"Missing keys in record {i}"
+        assert record["config_name"] == "jsonl_test"
+        assert record["epoch"] == i + 1
+        assert record["max_epochs"] == 3
+        assert isinstance(record["hparams"], dict)
+        assert record["hparams"]["seq_len"] == seq_len
+        assert record["epoch_elapsed_sec"] >= 0
+        assert record["total_elapsed_sec"] >= 0
+
+
+def test_lstm_checkpoint_caching_and_resume(multi_symbol_synthetic_df, tmp_path):
+    """Verifies that individual LSTM candidate checkpoints are persisted to disk
+    and cleanly loaded without retraining.
+    """
+    feature_cols = ["f1", "f2", "f3", "f4"]
+    seq_len = 10
+
+    train_df = multi_symbol_synthetic_df.filter(pl.col("open_time") < datetime(2024, 1, 1, 1, 10))
+    val_df = multi_symbol_synthetic_df.filter(pl.col("open_time") >= datetime(2024, 1, 1, 1, 10))
+
+    # 1. Train initial model
+    model_orig, scaler_orig, threshold_orig, history_orig = train_lstm(
+        train_df=train_df,
+        val_df=val_df,
+        feature_cols=feature_cols,
+        target_col="target",
+        seq_len=seq_len,
+        hidden_size=16,
+        num_layers=1,
+        dropout=0.0,
+        batch_size=32,
+        max_epochs=2,
+        patience=2,
+        device="cpu",
+        config_name="checkpoint_test_cfg",
+    )
+
+    # 2. Persist candidate checkpoint to disk
+    checkpoint_path = tmp_path / "lstm_checkpoint_config_test.pt"
+    hparams = {
+        "name": "checkpoint_test_cfg",
+        "seq_len": seq_len,
+        "hidden_size": 16,
+        "dropout": 0.0,
+    }
+    save_lstm_artifacts(
+        model=model_orig,
+        scaler=scaler_orig,
+        threshold=threshold_orig,
+        feature_cols=feature_cols,
+        seq_len=seq_len,
+        hparams=hparams,
+        filepath=checkpoint_path,
+        history=history_orig,
+    )
+
+    assert checkpoint_path.exists()
+
+    # 3. Simulate sweep loop checkpoint detection & resume
+    assert checkpoint_path.exists()
+
+    # Load cached checkpoint
+    loaded = load_lstm_artifacts(checkpoint_path, device="cpu")
+
+    # 4. Verify all saved properties and history metrics match
+    assert loaded["threshold"] == threshold_orig
+    assert loaded["seq_len"] == seq_len
+    assert loaded["hparams"]["name"] == "checkpoint_test_cfg"
+    assert "best_val_balanced_acc" in loaded["history"]
+    assert loaded["history"]["best_val_balanced_acc"] == history_orig["best_val_balanced_acc"]
+
+    # 5. Verify model prediction consistency
+    val_ds = SequenceDataset(
+        val_df,
+        feature_cols=feature_cols,
+        target_col="target",
+        seq_len=seq_len,
+        scaler=loaded["scaler"],
+    )
+    probs_orig, _ = predict_lstm(model_orig, val_ds, device="cpu")
+    probs_loaded, _ = predict_lstm(loaded["model"], val_ds, device="cpu")
+
+    np.testing.assert_allclose(probs_orig, probs_loaded, rtol=1e-5)

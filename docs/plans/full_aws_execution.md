@@ -164,6 +164,16 @@ To create a persona-based IAM Execution Role with bucket access using **Amazon S
 3. Select **Run** -> **Run All Cells**.
 4. Model artifacts are saved to `models/sklearn/ml_artifacts.pkl` and `models/lstm_model.pt`.
 
+> [!TIP]
+> **Persistent Background Execution (Preventing Disconnects)**:
+> To prevent AWS session refreshes or browser disconnects from interrupting long training sweeps, run headlessly via terminal or code cell:
+>
+> ```bash
+> nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
+> ```
+>
+> Track progress anytime in terminal: `ps aux | grep python` (process check) or `tail -f train.log` (live logs).
+
 ---
 
 ### Step 6: Execute Phase 2 Evaluation & Error Analysis

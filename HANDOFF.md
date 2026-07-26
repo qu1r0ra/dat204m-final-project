@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Last updated**       | 2026-07-25                                                                                                                                                                                                                                                                                                                                                                       |
-| **Last session focus** | Production Cloud Infrastructure & Hardware Specs: Configured AWS SageMaker AI instance quota to `ml.g4dn.2xlarge` (8 vCPUs, 32 GB RAM, 1x NVIDIA T4 GPU) for GPU-accelerated PyTorch LSTM sequence training (<25 min projected full pipeline runtime). Updated `docs/plans/full_aws_execution.md` with accelerated computing breakdown. Verified all 31 unit tests pass cleanly. |
-| **Active tasks**       | SageMaker `ml.g4dn.2xlarge` Notebook Execution (`notebooks/01_eda_descriptive_analytics.ipynb`, `notebooks/02_ml_feature_engineering_training.ipynb`, `notebooks/03_ml_evaluation_error_analysis.ipynb`).                                                                                                                                                                        |
-| **Blockers**           | None.                                                                                                                                                                                                                                                                                                                                                                            |
+| Field                  | Value                                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Last updated**       | 2026-07-26                                                                                                                                                                                                                                                                                                         |
+| **Last session focus** | SageMaker Session Persistence & Background Execution: Solved SageMaker session timeout issue during Notebook 02 training. Provided `nohup`/`tmux` headless background execution steps and updated `README.md` and `docs/plans/full_aws_execution.md`. Guided user on setting IAM Role Max Session Duration to 12h. |
+| **Active tasks**       | SageMaker Background Notebook Execution (`notebooks/02_ml_feature_engineering_training.ipynb` background training sweep & `notebooks/03_ml_evaluation_error_analysis.ipynb` evaluation).                                                                                                                           |
+| **Blockers**           | None.                                                                                                                                                                                                                                                                                                              |
 
 ---
 
@@ -63,16 +63,15 @@ _For detailed historical progress logs and completed task timelines, see [docs/s
 
 ## 5. Implementation Queue (Handoff for Next Agent)
 
-1. **[COMPLETED] Code Check & Unit Test Verification**: Executed `uv run pytest`, verifying 30/30 unit tests pass cleanly. Confirmed AWS cloud execution strategy via SageMaker Notebook Instance and dynamic `src/config.py` path switching.
-2. **[COMPLETED] Notebook Presentation & Explanatory Refinement**: Refactored `notebooks/02_ml_feature_engineering_training.ipynb` and `notebooks/03_ml_evaluation_error_analysis.ipynb` with plain-language feature breakdowns, non-technical commentary, and Mermaid visual diagrams.
-3. **[COMPLETED] SageMaker Setup Simplification**: Updated `docs/plans/full_aws_execution.md` to remove Lifecycle Configuration dependencies in favor of manual terminal bootstrapping (`uv sync`, kernel registration) with 35 GB minimum EBS storage volume.
-4. **Next Agent Action Guide (GPU-Accelerated SageMaker Production Execution)**:
-   - **Step 1**: Assist the user in launching and configuring the new GPU-accelerated **`ml.g4dn.2xlarge`** JupyterLab Notebook Instance on AWS SageMaker AI with 35+ GB EBS volume storage.
-   - **Step 2**: Guide the user through terminal bootstrapping in JupyterLab (`uv sync`, kernel registration for `Python (DAT204M)`, and creating `.env` with `EXECUTION_MODE=aws_hub`).
-   - **Step 3**: Guide the user to select **`Python (DAT204M)`** as the Jupyter notebook kernel.
-   - **Step 4**: Execute `notebooks/01_eda_descriptive_analytics.ipynb` (Run All Cells).
-   - **Step 5**: Execute `notebooks/02_ml_feature_engineering_training.ipynb` (Run All Cells) for full 20-symbol 20-epoch PyTorch LSTM GPU training sweep (~15-18 mins).
-   - **Step 6**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` (Run All Cells) to evaluate final model performance and export metrics.
+1. **[COMPLETED] SageMaker Background Execution & Documentation**: Documented background headless execution commands (`nohup`/`tmux`) in `README.md` and `docs/plans/full_aws_execution.md` to prevent browser timeouts/session refreshes during Notebook 02 training.
+2. **Next Agent Action Guide (GPU-Accelerated SageMaker Background Execution)**:
+   - **Step 1**: Verify the user has set the IAM Role Max Session Duration to 12h.
+   - **Step 2**: Guide the user to run Notebook 02 headlessly in the background via the SageMaker terminal on their right panel:
+     ```bash
+     nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
+     ```
+   - **Step 3**: Assist the user in monitoring background progress (`ps aux | grep python`, `tail -f train.log`, `nvidia-smi`) until `models/sklearn/ml_artifacts.pkl` and `models/lstm_model.pt` are generated.
+   - **Step 4**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` to evaluate model metrics and export `docs/evaluation_report.json`.
 
 ---
 

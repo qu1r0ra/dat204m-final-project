@@ -321,3 +321,40 @@ Apply [aws/s3_bucket_policy.json](aws/s3_bucket_policy.json) to grant read-only 
    - Open Jupyter notebook `notebooks/01_eda_descriptive_analytics.ipynb` and select kernel **`Python (DAT204M)`**. Run all cells.
    - Open `notebooks/02_ml_feature_engineering_training.ipynb`. The notebook reads cloud data directly from S3, trains all 5 classifiers across all top 20 trading pairs (30.65M rows) with 20-epoch PyTorch LSTM GPU sweeps (~10-12 mins), and saves trained artifacts to `models/`.
    - Open `notebooks/03_ml_evaluation_error_analysis.ipynb` and run all cells to evaluate trained classifiers on the held-out test partition and export `docs/evaluation_report.json`.
+
+4. **Uninterrupted Background Execution (Preventing Session Disconnects & Timeouts)**:
+
+   > [!TIP]
+   > **Preventing Browser Disconnects**: Interactive browser sessions in SageMaker JupyterLab can disconnect or require a session refresh when idle or when AWS SSO tokens expire. To run Notebook 02 headlessly in the background without keeping your browser open:
+   - **Option A (Terminal - Recommended)**:
+     Run the notebook in the SageMaker terminal on your instance:
+
+     ```bash
+     nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
+     ```
+
+     Monitor progress anytime in the terminal:
+
+     ```bash
+     # Check process status
+     ps aux | grep python
+
+     # Watch live log output
+     tail -f train.log
+
+     # Monitor GPU utilization & VRAM
+     nvidia-smi
+     ```
+
+   - **Option B (Notebook Code Cell)**:
+     Insert a code cell at the top of your notebook in Jupyter:
+
+     ```python
+     import subprocess
+
+     subprocess.Popen(
+         "nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &",
+         shell=True,
+     )
+     print("🚀 Background training started! You can safely close your browser.")
+     ```

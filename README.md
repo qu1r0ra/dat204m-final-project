@@ -356,5 +356,19 @@ Apply [aws/s3_bucket_policy.json](aws/s3_bucket_policy.json) to grant read-only 
          "nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &",
          shell=True,
      )
-     print("🚀 Background training started! You can safely close your browser.")
+     print("Background training started! You can safely close your browser.")
+     ```
+
+5. **Syncing Model Checkpoints to AWS S3 & Local Machine**:
+
+   After training completes in SageMaker, sync the generated model artifacts to S3 and your local machine:
+   - **On SageMaker Instance Terminal (Sync Checkpoints to S3)**:
+
+     ```bash
+     aws s3 sync models/ s3://dat204m-binance-bigdata-hub-sg/models/
+     ```
+
+   - **On Local Machine (Sync Checkpoints from S3 to Local)**:
+     ```powershell
+     aws s3 sync s3://dat204m-binance-bigdata-hub-sg/models/ models/
      ```

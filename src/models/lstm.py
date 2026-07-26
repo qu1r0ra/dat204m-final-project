@@ -518,6 +518,8 @@ def save_lstm_artifacts(
         "threshold": threshold,
         "feature_cols": feature_cols,
         "seq_len": seq_len,
+        "num_layers": model.lstm.num_layers,
+        "hidden_size": model.lstm.hidden_size,
         "hparams": hparams,
         "history": history if history is not None else {},
         "metrics": metrics if metrics is not None else {},
@@ -554,8 +556,8 @@ def load_lstm_artifacts(
 
     feature_cols = artifacts["feature_cols"]
     hparams = artifacts.get("hparams", {})
-    hidden_size = hparams.get("hidden_size", 64)
-    num_layers = hparams.get("num_layers", 2)
+    hidden_size = artifacts.get("hidden_size", hparams.get("hidden_size", 64))
+    num_layers = artifacts.get("num_layers", hparams.get("num_layers", 2))
     dropout = hparams.get("dropout", 0.3)
 
     model = LSTMClassifier(
@@ -575,4 +577,5 @@ def load_lstm_artifacts(
         "feature_cols": feature_cols,
         "seq_len": artifacts["seq_len"],
         "hparams": hparams,
+        "history": artifacts.get("history", {}),
     }

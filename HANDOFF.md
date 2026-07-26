@@ -2,12 +2,12 @@
 
 Living document for agent-to-agent and session-to-session continuity across the Binance Spot K-Lines data and machine learning pipeline workspace.
 
-| Field                  | Value                                                                                                                                                                                                                                                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Last updated**       | 2026-07-26                                                                                                                                                                                                                                                                                                         |
-| **Last session focus** | SageMaker Session Persistence & Background Execution: Solved SageMaker session timeout issue during Notebook 02 training. Provided `nohup`/`tmux` headless background execution steps and updated `README.md` and `docs/plans/full_aws_execution.md`. Guided user on setting IAM Role Max Session Duration to 12h. |
-| **Active tasks**       | SageMaker Background Notebook Execution (`notebooks/02_ml_feature_engineering_training.ipynb` background training sweep & `notebooks/03_ml_evaluation_error_analysis.ipynb` evaluation).                                                                                                                           |
-| **Blockers**           | None.                                                                                                                                                                                                                                                                                                              |
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Last updated**       | 2026-07-26                                                                                                                                                                                                                                                                                                                                                                       |
+| **Last session focus** | Notebook 02 & 03 Pipeline Audit & Checkpoint Persistence: Fixed `ModelArtifacts` threshold attributes, added per-candidate LSTM checkpoint caching (`models/lstm_checkpoint_<slug>.pt`), added `max_samples=0.2` and `n_jobs` memory limits to RandomForestClassifier, fixed Notebook 03 variable references, and added `test_lstm_checkpoint_caching_and_resume` to test suite. |
+| **Active tasks**       | SageMaker Background Notebook Execution (`notebooks/02_ml_feature_engineering_training.ipynb` background training sweep & `notebooks/03_ml_evaluation_error_analysis.ipynb` evaluation).                                                                                                                                                                                         |
+| **Blockers**           | None.                                                                                                                                                                                                                                                                                                                                                                            |
 
 ---
 
@@ -54,8 +54,16 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
 - **Ingestion & S3 Pipeline**: 21,932 raw CSV files (~80.8 GB, 609M records) downloaded, stored in `data/raw/`, synced to S3, and cataloged in AWS Glue database (`binance_hub_db`). Downsampled 20-symbol Parquet sample (30.6M records) generated and cataloged.
 - **Cloud Infrastructure**: CloudFormation stack `dat204m-binance-hub-stack` deployed with cross-account spoke access policy. SageMaker Notebook setup streamlined for manual terminal bootstrapping.
 - **Distributed PySpark Engine**: PySpark pipelines operational for profiling, sample generation, feature engineering, and MLlib distributed training. Dynamic `winutils.exe` provisioning integrated for Windows compatibility.
-- **Modeling & Feature Engineering**: 16-feature set configured. Classifiers pipeline operational across all 5 models (Majority Floor, OLS, LogReg, RF, and PyTorch LSTM with live `tqdm` progress and `models/lstm_training_log.jsonl` logging). Final metrics will be logged upon completing the AWS SageMaker AI production run.
-- **Code Quality & Verification**: All 31 unit tests pass in `pytest` cleanly in 76s with zero ruff lint or formatting errors.
+- **Modeling & Feature Engineering Audit & Fixes**:
+  - **`ModelArtifacts`**: Extended in `src/models/train.py` to include `lr_threshold` and `rf_threshold`.
+  - **Notebook 02 Structure & Imports**: Restored Cell 1 Markdown explanation ("The Question We Are Answering"), resolved missing `load_lstm_artifacts` import in Cell 3 (which caused `NameError` when resume-loading existing `.pt` checkpoints), and added `import numpy as np` in Cell 3.
+  - **Emoji Removal**: Stripped all non-standard emojis from notebooks (`01`, `02`, `03`) and Python source modules to maintain clean production styling.
+  - **LSTM Checkpoint Probability Fallback**: Added defensive fallback in Cell 17 of Notebook 02 to recompute validation probabilities if cached checkpoint history does not contain `val_probs` and `val_targets`.
+  - **Validation Decision Threshold Tuning**: Implemented in Cell 19 of `notebooks/02_ml_feature_engineering_training.ipynb` to grid search cutoffs (0.40–0.60) for maximum balanced accuracy on validation partition.
+  - **Per-Candidate Checkpoint Persistence & Caching**: Added automatic saving/loading of `.pt` checkpoints (`models/lstm_checkpoint_<slug>.pt`) in `src/models/lstm.py` and Notebook 02 (Cells 15 & 17). If a training run crashes or is interrupted, pre-trained candidates load from disk in <1 second instead of retraining from scratch.
+  - **Memory & OS Resource Safeguards**: Configured `max_samples=0.2` and `n_jobs=min(os.cpu_count() or 4, 8)` in `RandomForestClassifier` inside `src/models/train.py` to eliminate `MemoryError` and `WinError 1450` thread handle limits on large matrices (21.4M rows).
+  - **Notebook 03 Variable Alignment**: Fixed missing baseline imports and variable definitions (`baselines`, `lr`, `rf`) in `notebooks/03_ml_evaluation_error_analysis.ipynb` so all evaluation cells run cleanly.
+- **Code Quality & Verification**: 32/32 unit tests pass in `pytest` cleanly with zero `ruff` lint or formatting errors.
 
 _For detailed historical progress logs and completed task timelines, see [docs/session_history.md](docs/session_history.md)._
 
@@ -63,15 +71,14 @@ _For detailed historical progress logs and completed task timelines, see [docs/s
 
 ## 5. Implementation Queue (Handoff for Next Agent)
 
-1. **[COMPLETED] SageMaker Background Execution & Documentation**: Documented background headless execution commands (`nohup`/`tmux`) in `README.md` and `docs/plans/full_aws_execution.md` to prevent browser timeouts/session refreshes during Notebook 02 training.
+1. **[COMPLETED] Pipeline Audit, Checkpoint Caching & Memory Optimization**: Thoroughly audited Notebook 02 and 03, added per-candidate LSTM checkpoint caching, memory safeguards for Random Forest, and validated test suite.
 2. **Next Agent Action Guide (GPU-Accelerated SageMaker Background Execution)**:
-   - **Step 1**: Verify the user has set the IAM Role Max Session Duration to 12h.
-   - **Step 2**: Guide the user to run Notebook 02 headlessly in the background via the SageMaker terminal on their right panel:
+   - **Step 1**: Guide the user to run Notebook 02 headlessly in the background via the SageMaker terminal:
      ```bash
      nohup uv run python -m jupyter nbconvert --to notebook --execute notebooks/02_ml_feature_engineering_training.ipynb --output notebooks/02_ml_feature_engineering_training_executed.ipynb > train.log 2>&1 &
      ```
-   - **Step 3**: Assist the user in monitoring background progress (`ps aux | grep python`, `tail -f train.log`, `nvidia-smi`) until `models/sklearn/ml_artifacts.pkl` and `models/lstm_model.pt` are generated.
-   - **Step 4**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` to evaluate model metrics and export `docs/evaluation_report.json`.
+   - **Step 2**: Monitor background progress (`ps aux | grep python`, `tail -f train.log`, `nvidia-smi`) until `models/ml_artifacts.pkl` and `models/lstm_checkpoint.pt` are generated. Note: Any previously trained LSTM candidate checkpoint in `models/` will load instantly from disk without retraining.
+   - **Step 3**: Execute `notebooks/03_ml_evaluation_error_analysis.ipynb` headlessly or interactively to evaluate model metrics and export `data/sample/test_evaluation_metrics.json`.
 
 ---
 

@@ -301,12 +301,8 @@ def train_lstm(
         val_loss = val_loss_sum / val_count if val_count > 0 else 0.0
 
         # Compute real validation metrics per epoch
-        all_val_probs = (
-            np.concatenate(epoch_val_probs) if epoch_val_probs else np.array([])
-        )
-        all_val_targets = (
-            np.concatenate(epoch_val_targets) if epoch_val_targets else np.array([])
-        )
+        all_val_probs = np.concatenate(epoch_val_probs) if epoch_val_probs else np.array([])
+        all_val_targets = np.concatenate(epoch_val_targets) if epoch_val_targets else np.array([])
         val_preds = (all_val_probs >= 0.5).astype(int)
         epoch_metrics = calculate_metrics(all_val_targets, val_preds, all_val_probs)
 
@@ -376,9 +372,7 @@ def train_lstm(
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_epoch = epoch
-            best_model_state = {
-                k: v.cpu().clone() for k, v in model.state_dict().items()
-            }
+            best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             patience_counter = 0
         else:
             patience_counter += 1
@@ -486,11 +480,7 @@ def predict_lstm(
             probs = torch.sigmoid(logits)
             all_probs.append(probs.cpu().numpy())
 
-    y_probs = (
-        np.concatenate(all_probs)
-        if len(all_probs) > 0
-        else np.array([], dtype=np.float32)
-    )
+    y_probs = np.concatenate(all_probs) if len(all_probs) > 0 else np.array([], dtype=np.float32)
 
     y_preds_default = (y_probs >= 0.5).astype(np.int32)
     return y_probs, y_preds_default

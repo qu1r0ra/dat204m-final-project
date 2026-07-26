@@ -74,22 +74,16 @@ def split_data_chronologically(
     val_end_dt = pl.lit(val_end).str.to_datetime()
 
     purge_delta = (
-        pl.duration(minutes=purge_minutes)
-        if purge_minutes > 0
-        else pl.duration(seconds=0)
+        pl.duration(minutes=purge_minutes) if purge_minutes > 0 else pl.duration(seconds=0)
     )
     val_start_dt = train_end_dt + purge_delta
     test_start_dt = val_end_dt + purge_delta
 
     train_df = df.filter(pl.col("open_time") < train_end_dt)
-    val_df = df.filter(
-        (pl.col("open_time") >= val_start_dt) & (pl.col("open_time") < val_end_dt)
-    )
+    val_df = df.filter((pl.col("open_time") >= val_start_dt) & (pl.col("open_time") < val_end_dt))
     test_df = df.filter(pl.col("open_time") >= test_start_dt)
 
-    logger.info(
-        f"Split sizes - Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}"
-    )
+    logger.info(f"Split sizes - Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
     return train_df, val_df, test_df
 
 
@@ -168,9 +162,7 @@ def train_pipeline(
     import os
 
     rf_n_jobs = min(os.cpu_count() or 4, 8)
-    logger.info(
-        f"Training Random Forest Classifier (n_jobs={rf_n_jobs}, max_samples=0.2)..."
-    )
+    logger.info(f"Training Random Forest Classifier (n_jobs={rf_n_jobs}, max_samples=0.2)...")
     rf = RandomForestClassifier(
         n_estimators=100,
         max_depth=10,

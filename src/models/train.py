@@ -216,3 +216,14 @@ def save_model_artifacts(artifacts: ModelArtifacts, dest_dir: Path) -> None:
         save_metrics_json(artifacts.metrics, json_path)
 
     logger.info("Model artifacts saved successfully.")
+
+
+def load_model_artifacts(source: Path) -> ModelArtifacts:
+    """Loads ModelArtifacts from a pickle file or directory containing ml_artifacts.pkl."""
+    path = source if source.is_file() else source / "ml_artifacts.pkl"
+    if not path.exists():
+        raise FileNotFoundError(f"ML artifacts file not found: {path}")
+    logger.info(f"Loading ML artifacts from {path}...")
+    with open(path, "rb") as f:
+        artifacts: ModelArtifacts = pickle.load(f)
+    return artifacts

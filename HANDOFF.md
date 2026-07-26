@@ -60,10 +60,10 @@ Architectural decisions are managed canonically in `.cursor/rules/` and project 
   - **Emoji Removal**: Stripped all non-standard emojis from notebooks (`01`, `02`, `03`) and Python source modules to maintain clean production styling.
   - **LSTM Checkpoint Probability Fallback**: Added defensive fallback in Cell 17 of Notebook 02 to recompute validation probabilities if cached checkpoint history does not contain `val_probs` and `val_targets`.
   - **Validation Decision Threshold Tuning**: Implemented in Cell 19 of `notebooks/02_ml_feature_engineering_training.ipynb` to grid search cutoffs (0.40–0.60) for maximum balanced accuracy on validation partition.
-  - **Per-Candidate Checkpoint Persistence & Caching**: Added automatic saving/loading of `.pt` checkpoints (`models/lstm_checkpoint_<slug>.pt`) in `src/models/lstm.py` and Notebook 02 (Cells 15 & 17). If a training run crashes or is interrupted, pre-trained candidates load from disk in <1 second instead of retraining from scratch.
+  - **Per-Candidate Checkpoint Persistence & Caching**: Added automatic saving/loading of `.pt` checkpoints (`models/lstm_checkpoint_<slug>.pt`, `models/lstm_checkpoint.pt`), baseline artifacts (`models/baseline_artifacts.pkl`), and scikit-learn ML artifacts (`models/ml_artifacts.pkl` via `load_model_artifacts`) in `notebooks/02_ml_feature_engineering_training.ipynb`. If notebooks are executed when checkpoints exist, pre-trained models load from disk instantly without retraining from scratch.
   - **Memory & OS Resource Safeguards**: Configured `max_samples=0.2` and `n_jobs=min(os.cpu_count() or 4, 8)` in `RandomForestClassifier` inside `src/models/train.py` to eliminate `MemoryError` and `WinError 1450` thread handle limits on large matrices (21.4M rows).
   - **Notebook 03 Variable Alignment**: Fixed missing baseline imports and variable definitions (`baselines`, `lr`, `rf`) in `notebooks/03_ml_evaluation_error_analysis.ipynb` so all evaluation cells run cleanly.
-- **Code Quality & Verification**: 32/32 unit tests pass in `pytest` cleanly with zero `ruff` lint or formatting errors.
+- **Code Quality & Verification**: 33/33 unit tests pass in `pytest` cleanly with zero `ruff` lint or formatting errors.
 
 _For detailed historical progress logs and completed task timelines, see [docs/session_history.md](docs/session_history.md)._
 
